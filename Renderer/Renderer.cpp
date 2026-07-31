@@ -1,4 +1,4 @@
-﻿#include "GP2_Renderer.h"
+﻿#include "Renderer.h"
 #include "Vulkan/Utils/Utils.h"
 #include <stdexcept>
 #include "imgui.h"

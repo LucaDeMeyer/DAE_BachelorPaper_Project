@@ -1,5 +1,5 @@
 #include "Application.h"
-#include "GP2_Renderer.h"
+#include "Renderer.h"
 #include "UI/UILayer.h"
 #include "UI/UIPanels.h"
 #include <stdexcept>

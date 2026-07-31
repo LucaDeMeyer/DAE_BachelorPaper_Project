@@ -1,8 +1,8 @@
 ﻿
 set(SOURCE_FILES
-        main.cpp
-GP2_Renderer.cpp
-        Application.cpp
+main.cpp
+Renderer.cpp
+Application.cpp
 Vulkan/Core/Allocator.cpp 
 Vulkan/Core/Buffer.cpp 
 Vulkan/Core/GraphicsContext.cpp 
@@ -29,8 +29,8 @@ Vulkan/Passes/SSAOPass.cpp
 Vulkan/Passes/PointShadowPass.cpp)
 
 set(HEADER_FILES
-        GP2_Renderer.h
-        Application.h
+Renderer.h
+Application.h
 Vulkan/Core/Allocator.h
 Vulkan/Core/Buffer.h 
 Vulkan/Core/DescriptorSet.h
@@ -64,12 +64,12 @@ Vulkan/Passes/PointShadowPass.h)
 
 
 
-add_executable(GP2_Renderer ${SOURCE_FILES} ${HEADER_FILES} )
+add_executable(Renderer ${SOURCE_FILES} ${HEADER_FILES} )
 
 
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
-  set_property(TARGET GP2_Renderer PROPERTY CXX_STANDARD 20)
+  set_property(TARGET Renderer PROPERTY CXX_STANDARD 20)
 endif()
 
 include (FetchContent)
@@ -155,7 +155,7 @@ target_include_directories(imgui PUBLIC
 target_link_libraries(imgui PRIVATE Vulkan::Vulkan glfw)
 
 target_include_directories(
-GP2_Renderer
+Renderer
 PRIVATE
 ${Vulkan_INCLUDE_DIRS}
 ${CMAKE_CURRENT_SOURCE_DIR}
@@ -166,7 +166,7 @@ ${vma_SOURCE_DIR}/include
 ${assimp_SOURCE_DIR}/include
 )
 
-target_link_libraries(GP2_Renderer PRIVATE glm glfw Vulkan::Vulkan assimp imgui)
+target_link_libraries(Renderer PRIVATE glm glfw Vulkan::Vulkan assimp imgui)
 
 find_program(GLSLC glslc PATHS $ENV{VULKAN_SDK}/Bin)
 if(NOT GLSLC)
@@ -199,14 +199,14 @@ foreach(SHADER IN LISTS SHADER_FILES)
     list(APPEND COMPILED_SHADERS ${SPIRV_FILE})
 endforeach()
 
-add_custom_command(TARGET GP2_Renderer POST_BUILD
+add_custom_command(TARGET Renderer POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory 
         "${asset_repo_SOURCE_DIR}" 
-        "$<TARGET_FILE_DIR:GP2_Renderer>/models"
+        "$<TARGET_FILE_DIR:Renderer>/models"
         
     COMMAND ${CMAKE_COMMAND} -E copy_directory 
         "${asset_repo_SOURCE_DIR}/Textures" 
-        "$<TARGET_FILE_DIR:GP2_Renderer>/textures"
+        "$<TARGET_FILE_DIR:Renderer>/textures"
         
   #  COMMAND ${CMAKE_COMMAND} -E copy_directory 
   #      "${asset_repo_SOURCE_DIR}/HDRI" 
@@ -215,7 +215,7 @@ add_custom_command(TARGET GP2_Renderer POST_BUILD
     COMMENT "Copying all external assets next to the executable..."
 )
 add_custom_target(CompileShaders ALL DEPENDS ${COMPILED_SHADERS})
-add_dependencies(GP2_Renderer CompileShaders)
+add_dependencies(Renderer CompileShaders)
 
-target_compile_definitions(GP2_Renderer PRIVATE GLM_FORCE_DEPTH_ZERO_TO_ONE)
+target_compile_definitions(Renderer PRIVATE GLM_FORCE_DEPTH_ZERO_TO_ONE)
 
