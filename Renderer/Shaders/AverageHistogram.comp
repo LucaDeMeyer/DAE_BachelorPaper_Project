@@ -1,0 +1,89 @@
+#version 450
+
+// We dispatch exactly ONE group of 256 threads.
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std430) readonly buffer HistogramBuffer {
+    uint bins[256];
+} histogram;
+
+layout(set = 0, binding = 1, std430) buffer ExposureBuffer {
+    float exposure;
+} lastFrame;
+
+layout(push_constant) uniform Params {
+    float minLogLum;
+    float logLumRange;
+    float timeDelta;
+    float adaptationRate;
+    uint pixelCount;
+    float minEV100; 
+    float maxEV100;
+    float manualEV100; 
+} params;
+
+shared uint sharedBins[256];
+
+void main() {
+    uint localId = gl_LocalInvocationIndex;
+    
+    // Pull the global VRAM histogram into ultra-fast L1 cache for the loop
+    sharedBins[localId] = histogram.bins[localId];
+    barrier();
+
+    // We only need ONE thread (Thread 0) to do the final math and update the exposure.
+    if (localId == 0) {
+      
+        // We ignore the darkest 10% and the brightest 15% of pixels. 
+        // This prevents tiny, ultra-bright specular highlights or pitch-black corners 
+        // from drastically shifting the camera's exposure.
+        uint minIgnored = uint(float(params.pixelCount) * 0.10);
+        uint maxIgnored = uint(float(params.pixelCount) * 0.85);
+        
+        uint currentPixelCount = 0;
+        float weightedLogLumSum = 0.0;
+        uint activePixelCount = 0;
+
+        for (uint i = 0; i < 256; ++i) {
+            uint binCount = sharedBins[i];
+            uint nextCount = currentPixelCount + binCount;
+
+            // If this bin contains pixels that fall within our accepted 10%-85% range...
+            if (i > 0 && binCount > 0 && currentPixelCount < maxIgnored && nextCount > minIgnored) {
+                
+                uint low  = max(currentPixelCount, minIgnored);
+                uint high = min(nextCount, maxIgnored);
+                uint contributing = high - low;
+
+                // Reconstruct the actual luminance value from the bin index
+                float normalizedBin = (float(i) - 1.0) / 254.0;
+                float logLum = normalizedBin * params.logLumRange + params.minLogLum;
+                
+                weightedLogLumSum += logLum * float(contributing);
+                activePixelCount  += contributing;
+            }
+            currentPixelCount = nextCount;
+        }
+
+        // Prevent division by zero if the screen is perfectly black
+        activePixelCount = max(activePixelCount, 1);
+
+      
+        float avgLogLum   = weightedLogLumSum / float(activePixelCount);
+        float avgLum      = exp2(avgLogLum);
+        
+        // Convert Luminance to standard camera Exposure Value (EV100)
+        float sceneEV100  = log2(avgLum * 8.0);
+
+        float targetOffset = sceneEV100 - params.manualEV100;
+        targetOffset = clamp(targetOffset, params.minEV100, params.maxEV100);
+
+        // Exponential decay curve for smooth temporal adaptation.
+        // This physically models how the human iris slowly opens/closes over time.
+        float newOffset = lastFrame.exposure
+                        + (targetOffset - lastFrame.exposure)
+                        * (1.0 - exp(-params.timeDelta * params.adaptationRate));
+                        
+        lastFrame.exposure = newOffset;
+    }
+}

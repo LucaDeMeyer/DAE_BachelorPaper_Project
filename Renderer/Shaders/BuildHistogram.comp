@@ -1,0 +1,61 @@
+#version 450
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) uniform sampler2D hdrImage;
+
+layout(set = 0, binding = 1, std430) buffer HistogramBuffer {
+    uint bins[256];
+} histogram;
+
+layout(push_constant) uniform Params {
+    float minLogLum;
+    float logLumRange;
+} params;
+
+// We allocate a 256-bin histogram in the GPU's ultra-fast L1 Shared Memory.
+// Instead of 10,000 threads fighting to write to global VRAM simultaneously, 
+// they write to this local cache. We only write to VRAM once per Thread Group!
+shared uint sharedBins[256];
+
+const vec3 LUMINANCE_WEIGHTS = vec3(0.2126, 0.7152, 0.0722);
+
+// Converts an RGB pixel into a specific bin index [0 to 255]
+uint ColorToBin(vec3 hdrColor) {
+    // Rec. 709 Luminance extraction
+    float lum = dot(hdrColor, LUMINANCE_WEIGHTS);
+
+    // Prevent log2(0) which results in negative infinity
+    if (lum < 0.0001) return 0;
+
+    float logLum = log2(lum);
+    float normalizedLum = (logLum - params.minLogLum) / params.logLumRange;
+
+    // Clamp into the 1-255 range (Bin 0 is reserved for pure black)
+    return uint(clamp(normalizedLum * 254.0 + 1.0, 1.0, 255.0));
+}
+
+void main() {
+    uint localId = gl_LocalInvocationIndex;
+    
+    // Initialize the shared memory to 0
+    sharedBins[localId] = 0;
+    barrier();
+
+    ivec2 pixelCoord = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 imageSize = textureSize(hdrImage, 0);
+
+    // Every pixel in this 16x16 group calculates its bin and atomically 
+    // adds to the shared L1 cache.
+    if (pixelCoord.x < imageSize.x && pixelCoord.y < imageSize.y) {
+        vec3 color = texelFetch(hdrImage, pixelCoord, 0).rgb;
+        uint binIndex = ColorToBin(color);
+        atomicAdd(sharedBins[binIndex], 1);
+    }
+
+    // Wait for all 256 threads in the group to finish counting
+    barrier();
+
+    //  Write the final group tally to global VRAM. 
+    // Because localId goes from 0 to 255, each thread writes exactly ONE bin to VRAM!
+    atomicAdd(histogram.bins[localId], sharedBins[localId]);
+}

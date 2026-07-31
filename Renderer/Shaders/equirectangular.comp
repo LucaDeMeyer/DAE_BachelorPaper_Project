@@ -1,0 +1,54 @@
+#version 450
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) uniform sampler2D equirectangularMap;
+
+layout(set = 0, binding = 1, rgba16f) uniform writeonly imageCube environmentMap;
+
+const vec2 invAtan = vec2(0.1591, 0.3183);
+
+// Converts a 3D direction vector into 2D UV coordinates to sample a flat HDR panorama.
+vec2 SampleSphericalMap(vec3 v)
+{
+    vec2 uv = vec2(atan(v.z, v.x), asin(v.y));
+    uv *= invAtan;
+    uv += 0.5;
+    return uv;
+}
+
+vec3 GetCubemapVector(ivec3 globalId, vec2 imageSize)
+{
+    vec2 uv = vec2(globalId.xy) / imageSize;
+    uv = uv * 2.0 - 1.0; // Map from [0,1] to [-1,1]
+
+    uint face = globalId.z;
+    vec3 dir = vec3(0.0);
+
+    // Depending on which of the 6 faces we are writing to, the X/Y/Z math changes
+    switch (face) {
+        case 0: dir = vec3( 1.0, -uv.y, -uv.x); break; // POSITIVE X
+        case 1: dir = vec3(-1.0, -uv.y,  uv.x); break; // NEGATIVE X
+        case 2: dir = vec3( uv.x,  1.0,  uv.y); break; // POSITIVE Y
+        case 3: dir = vec3( uv.x, -1.0, -uv.y); break; // NEGATIVE Y
+        case 4: dir = vec3( uv.x, -uv.y,  1.0); break; // POSITIVE Z
+        case 5: dir = vec3(-uv.x, -uv.y, -1.0); break; // NEGATIVE Z
+    }
+    return normalize(dir);
+}
+
+void main()
+{
+  
+    ivec3 globalId = ivec3(gl_GlobalInvocationID);
+    ivec2 imageSize = imageSize(environmentMap);
+
+    if (globalId.x >= imageSize.x || globalId.y >= imageSize.y) return;
+
+    vec3 dir = GetCubemapVector(globalId, vec2(imageSize));
+
+    vec2 uv = SampleSphericalMap(dir);
+
+    vec3 color = texture(equirectangularMap, uv).rgb;
+
+    imageStore(environmentMap, globalId, vec4(color, 1.0));
+}
