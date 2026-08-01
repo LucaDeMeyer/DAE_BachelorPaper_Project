@@ -145,7 +145,7 @@ void Core::GraphicsContextBuilder::createInstance(GraphicsContext& ctx) {
 
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = "Hello Triangle";
+    appInfo.pApplicationName = "Renderer";
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pEngineName = "No Engine";
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
@@ -239,9 +239,23 @@ void Core::GraphicsContextBuilder::createLogicalDevice(GraphicsContext& ctx) {
         queueCreateInfos.push_back(queueCreateInfo);
     }
 
+ 
+    
+
+    VkPhysicalDeviceAccelerationStructureFeaturesKHR accelerationfeatures{};
+    accelerationfeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+    accelerationfeatures.accelerationStructure = VK_TRUE;
+    
+    
+    VkPhysicalDeviceRayTracingPipelineFeaturesKHR RTPipelineFeatures{};
+    RTPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+    RTPipelineFeatures.rayTracingPipeline = VK_TRUE;
+    RTPipelineFeatures.pNext = &accelerationfeatures;
+
     VkPhysicalDeviceMultiviewFeatures multiviewFeatures{};
     multiviewFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_FEATURES;
     multiviewFeatures.multiview = VK_TRUE;
+    multiviewFeatures.pNext = &RTPipelineFeatures;
 
     VkPhysicalDeviceFeatures deviceFeatures{};
     deviceFeatures.samplerAnisotropy = VK_TRUE;

@@ -26,7 +26,8 @@ Vulkan/Passes/ShadowPass.cpp
 UI/UILayer.cpp
 UI/UIPanels.cpp
 Vulkan/Passes/SSAOPass.cpp
-Vulkan/Passes/PointShadowPass.cpp)
+Vulkan/Passes/PointShadowPass.cpp
+Vulkan/Core/AccelerationStructure.cpp)
 
 set(HEADER_FILES
 Renderer.h
@@ -60,7 +61,8 @@ Vulkan/Passes/ShadowPass.h
 UI/UILayer.h
 UI/UIPanels.h
 Vulkan/Passes/SSAOPass.h
-Vulkan/Passes/PointShadowPass.h)
+Vulkan/Passes/PointShadowPass.h
+Vulkan/Core/AccelerationStructure.h)
 
 
 

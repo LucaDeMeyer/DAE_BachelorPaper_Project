@@ -74,6 +74,9 @@ void Renderer::initVulkan() {
         .addDeviceExtension(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME)
         .addDeviceExtension(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME)
         .addDeviceExtension(VK_EXT_ROBUSTNESS_2_EXTENSION_NAME)
+		.addDeviceExtension(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME)
+		.addDeviceExtension(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME)
+        .addDeviceExtension(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME)
         .build();
 
     int width, height;
@@ -105,6 +108,16 @@ void Renderer::initVulkan() {
 
 void Renderer::SetupScene(Core::Scene* scene, const std::vector<Core::Mesh>& meshes) {
     RegisterBindlessTextures(meshes);
+
+    VkCommandBuffer cmd = Utils::beginSingleTimeCommands(context->getDevice(), context->getCommandPool());
+    m_accelerationStructure = Core::RTAccelerationStructureBuilder(*context, *resourceManager)
+        .buildFromScene(cmd, scene)
+        .allowTLASUpdates(true)
+        .build();
+    Utils::endSingleTimeCommands(context->getDevice(), context->getCommandPool(), context->getGraphicsQueue(),cmd);
+
+    resourceManager->SetGlobalTLAS(m_accelerationStructure->getTLASHandle());
+
     BuildRenderGraph(scene);
     renderGraph->InitProfiling(context->getDevice(), context->getPhysicalDevice(), Core::MAX_FRAMES_IN_FLIGHT);
 }
@@ -541,6 +554,8 @@ void Renderer::Shutdown()
         renderGraph->Reset(*resourceManager);
         
     }
+
+    m_accelerationStructure->Shutdown();
 
     resourceManager->Shutdown();
 

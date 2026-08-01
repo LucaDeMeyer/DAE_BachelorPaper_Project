@@ -321,14 +321,14 @@ void Core::ResourceManager::InitGlobalGeometryBuffers(GraphicsContext& ctx, uint
     BufferDesc vDesc{};
     vDesc.name = "GlobalVertexSSBO";
     vDesc.size = maxVertices * sizeof(RenderTypes::Vertex);
-    vDesc.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    vDesc.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;;
     vDesc.vmaUsage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
     m_globalVertexBuffer = CreateBuffer(vDesc);
 
     BufferDesc iDesc{};
     iDesc.name = "GlobalIndexBuffer";
     iDesc.size = maxIndices * sizeof(uint32_t);
-    iDesc.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    iDesc.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;;
     iDesc.vmaUsage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
     m_globalIndexBuffer = CreateBuffer(iDesc);
 }

@@ -124,6 +124,10 @@ namespace Core
         void UpdateDeltaTime(float newtime) { m_DeltaTime = newtime; }
         float GetDeltaTime() const { return m_DeltaTime; }
 
+
+        void SetGlobalTLAS(VkAccelerationStructureKHR tlas) { m_globalTLAS = tlas; }
+        VkAccelerationStructureKHR GetGlobalTLAS() const { return m_globalTLAS; }
+
     private:
         GraphicsContext& context;
 
@@ -168,6 +172,8 @@ namespace Core
         VkSampler m_ShadowSampler = VK_NULL_HANDLE;
         VkSampler m_PointRepeatSampler = VK_NULL_HANDLE;
         float m_DeltaTime = 0;
+
+        VkAccelerationStructureKHR m_globalTLAS = VK_NULL_HANDLE;
 
         /// @brief Hashes resource properties into a string key to find matching free resources in the pool.
         std::string GenerateTextureKey(const TextureDesc& desc);
