@@ -65,6 +65,31 @@ Core::PipelineBuilder::Pipeline Core::PipelineBuilder::build() {
             throw std::runtime_error("Failed to create compute pipeline!");
         }
     }
+    else if (bindPoint == VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR) {
+
+        auto pfn_vkCreateRayTracingPipelinesKHR =
+            (PFN_vkCreateRayTracingPipelinesKHR)vkGetDeviceProcAddr(device, "vkCreateRayTracingPipelinesKHR");
+
+        if (!pfn_vkCreateRayTracingPipelinesKHR) {
+            throw std::runtime_error("Failed to load vkCreateRayTracingPipelinesKHR pointer!");
+        }
+
+        VkRayTracingPipelineCreateInfoKHR rayPipelineInfo{};
+        rayPipelineInfo.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR;
+        rayPipelineInfo.stageCount = static_cast<uint32_t>(shaderStageInfos.size());
+        rayPipelineInfo.pStages = shaderStageInfos.data();
+        rayPipelineInfo.groupCount = static_cast<uint32_t>(rtShaderGroups.size());
+        rayPipelineInfo.pGroups = rtShaderGroups.data();
+        rayPipelineInfo.maxPipelineRayRecursionDepth = maxRayRecursionDepth;
+        rayPipelineInfo.layout = result.layout;
+
+        result.missGroupCount = missGroupCount;
+        result.hitGroupCount = hitGroupCount;
+
+        if (pfn_vkCreateRayTracingPipelinesKHR(device, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &rayPipelineInfo, nullptr, &result.pipeline) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create ray tracing pipeline!");
+        }
+    }
     else {
         // === GRAPHICS PIPELINE ===
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
@@ -214,4 +239,8 @@ void Core::PipelineBuilder::Reset()
     depthFormat.reset();
     descriptorLayouts.clear();
     pushConstantRanges.clear();
+    rtShaderGroups.clear();
+    maxRayRecursionDepth = 1;
+    missGroupCount = 0;
+    hitGroupCount = 0;
 }

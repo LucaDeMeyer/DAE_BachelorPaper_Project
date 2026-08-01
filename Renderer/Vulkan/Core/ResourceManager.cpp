@@ -410,6 +410,12 @@ Core::PipelineBuilder::Pipeline* Core::ResourceManager::CreateComputePipeline(co
     return m_pipelines[name].get();
 }
 
+Core::PipelineBuilder::Pipeline* Core::ResourceManager::CreateRayTracingPipeline(const std::string& name, const RayTracingPipelineConfig& config) {
+    PipelineBuilder builder(context);
+    m_pipelines[name] = PipelineFactory::CreateRayTracing(&builder, config);
+    return m_pipelines[name].get();
+}
+
 Core::PipelineBuilder::Pipeline* Core::ResourceManager::GetPipeline(const std::string& name) const {
     auto it = m_pipelines.find(name);
     if (it != m_pipelines.end()) {

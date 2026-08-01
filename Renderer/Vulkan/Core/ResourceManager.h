@@ -94,6 +94,8 @@ namespace Core
 
         PipelineBuilder::Pipeline* CreateGraphicsPipeline(const std::string& name, const GraphicsPipelineConfig& config);
         PipelineBuilder::Pipeline* CreateComputePipeline(const std::string& name, const ComputePipelineConfig& config);
+        PipelineBuilder::Pipeline* CreateRayTracingPipeline(const std::string& name, const RayTracingPipelineConfig& config);
+
         PipelineBuilder::Pipeline* GetPipeline(const std::string& name) const;
 
         // Shared static samplers so we don't spam the GPU with duplicate sampler objects

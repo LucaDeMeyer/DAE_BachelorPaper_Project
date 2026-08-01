@@ -136,10 +136,62 @@ namespace Core
             return *this;
         }
 
+        PipelineBuilder& addRaygenShader(const std::string& code, const char* entryPoint = "main") {
+            addShaderStage(VK_SHADER_STAGE_RAYGEN_BIT_KHR, code, entryPoint);
+
+            VkRayTracingShaderGroupCreateInfoKHR group{};
+            group.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
+            group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+            group.generalShader = static_cast<uint32_t>(shaderStages.size() - 1);
+            group.closestHitShader = VK_SHADER_UNUSED_KHR;
+            group.anyHitShader = VK_SHADER_UNUSED_KHR;
+            group.intersectionShader = VK_SHADER_UNUSED_KHR;
+            rtShaderGroups.push_back(group);
+            return *this;
+        }
+
+        PipelineBuilder& addMissShader(const std::string& code, const char* entryPoint = "main") {
+            addShaderStage(VK_SHADER_STAGE_MISS_BIT_KHR, code, entryPoint);
+
+            VkRayTracingShaderGroupCreateInfoKHR group{};
+            group.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
+            group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+            group.generalShader = static_cast<uint32_t>(shaderStages.size() - 1);
+            group.closestHitShader = VK_SHADER_UNUSED_KHR;
+            group.anyHitShader = VK_SHADER_UNUSED_KHR;
+            group.intersectionShader = VK_SHADER_UNUSED_KHR;
+            rtShaderGroups.push_back(group);
+            missGroupCount++;
+            return *this;
+        }
+
+        PipelineBuilder& addHitShader(const std::string& closestHitCode, const char* entryPoint = "main") {
+            addShaderStage(VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, closestHitCode, entryPoint);
+
+            VkRayTracingShaderGroupCreateInfoKHR group{};
+            group.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
+            group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
+            group.generalShader = VK_SHADER_UNUSED_KHR;
+            group.closestHitShader = static_cast<uint32_t>(shaderStages.size() - 1);
+            group.anyHitShader = VK_SHADER_UNUSED_KHR;
+            group.intersectionShader = VK_SHADER_UNUSED_KHR;
+            rtShaderGroups.push_back(group);
+            hitGroupCount++;
+            return *this;
+        }
+
+        PipelineBuilder& setMaxRayRecursionDepth(uint32_t depth) {
+            maxRayRecursionDepth = depth;
+            return *this;
+        }
+
         /// @brief An encapsulated Vulkan pipeline and its associated layout.
         struct Pipeline {
             VkPipeline pipeline = VK_NULL_HANDLE;
             VkPipelineLayout layout = VK_NULL_HANDLE;
+
+            uint32_t missGroupCount = 0;
+            uint32_t hitGroupCount = 0;
 
             Pipeline() = default;
 
@@ -158,7 +210,6 @@ namespace Core
 
         /// @brief Compiles the configured state into a Vulkan Pipeline and Pipeline Layout.
         Pipeline build();
-
     private:
         void Reset();
         GraphicsContext& context;
@@ -192,6 +243,12 @@ namespace Core
         std::vector<VkDescriptorSetLayout> descriptorLayouts;
         std::vector<VkPushConstantRange> pushConstantRanges;
         VkPipelineBindPoint bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+
+        std::vector<VkRayTracingShaderGroupCreateInfoKHR> rtShaderGroups;
+        uint32_t maxRayRecursionDepth = 1;
+        uint32_t missGroupCount = 0;
+        uint32_t hitGroupCount = 0;
+
     };
 
     /// @brief Data-driven configuration struct containing all state needed to build a graphics pipeline.
@@ -224,6 +281,17 @@ namespace Core
     /// @brief Data-driven configuration struct containing all state needed to build a compute pipeline.
     struct ComputePipelineConfig {
         std::string computeShader;
+        std::vector<VkDescriptorSetLayout> descriptorLayouts;
+        std::vector<VkPushConstantRange> pushConstants;
+    };
+
+    struct RayTracingPipelineConfig {
+        std::string raygenShader;
+        std::vector<std::string> missShaders;
+        std::vector<std::string> hitShaders; 
+
+        uint32_t maxRayRecursionDepth = 1;
+
         std::vector<VkDescriptorSetLayout> descriptorLayouts;
         std::vector<VkPushConstantRange> pushConstants;
     };
@@ -280,7 +348,31 @@ namespace Core
 
             return std::make_unique<PipelineBuilder::Pipeline>(builder->build());
         }
+
+        static std::unique_ptr<PipelineBuilder::Pipeline> CreateRayTracing(
+            PipelineBuilder* builder,
+            const RayTracingPipelineConfig& config)
+        {
+            builder->setBindPoint(VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR)
+                .addRaygenShader(config.raygenShader)
+                .setMaxRayRecursionDepth(config.maxRayRecursionDepth);
+
+            for (const auto& miss : config.missShaders) {
+                builder->addMissShader(miss);
+            }
+
+            for (const auto& hit : config.hitShaders) {
+                builder->addHitShader(hit);
+            }
+
+            for (const auto& layout : config.descriptorLayouts) builder->addDescriptorSetLayout(layout);
+            for (const auto& pc : config.pushConstants) builder->addPushConstantRange(pc.stageFlags, pc.offset, pc.size);
+
+            return std::make_unique<PipelineBuilder::Pipeline>(builder->build());
+        }
     };
+
+
 }
 
 #endif // PIPELINE_H
