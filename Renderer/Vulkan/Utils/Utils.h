@@ -116,6 +116,8 @@ public:
         float farClip,
         const glm::vec3& lightDir,
         uint32_t numCascades);
+
+
 };
 
 #endif

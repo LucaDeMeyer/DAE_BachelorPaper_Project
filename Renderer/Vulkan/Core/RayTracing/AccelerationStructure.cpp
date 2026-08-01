@@ -1,8 +1,8 @@
 #include "AccelerationStructure.h"
-#include "GraphicsContext.h"
-#include "Object.h"
-#include "ResourceManager.h"
-#include "Scene.h"
+#include "Vulkan/Core/GraphicsContext.h"
+#include "Vulkan/Core/Object.h"
+#include "Vulkan/Core/ResourceManager.h"
+#include "Vulkan/Core/Scene.h"
 #include <iostream>      
 #include <stdexcept>
 
@@ -11,7 +11,7 @@ PFN_vkGetAccelerationStructureDeviceAddressKHR pfn_vkGetAccelerationStructureDev
 PFN_vkGetAccelerationStructureBuildSizesKHR pfn_vkGetAccelerationStructureBuildSizesKHR = nullptr;
 PFN_vkCmdBuildAccelerationStructuresKHR pfn_vkCmdBuildAccelerationStructuresKHR = nullptr;
 
-Core::RTAccelerationStructure::RTAccelerationStructure(GraphicsContext& context, ResourceManager& resManager)
+Core::RT::RTAccelerationStructure::RTAccelerationStructure(GraphicsContext& context, ResourceManager& resManager)
 	: m_context(context), m_resManager(resManager)
 {
 	VkDevice device = m_context.getDevice();
@@ -26,7 +26,7 @@ Core::RTAccelerationStructure::RTAccelerationStructure(GraphicsContext& context,
 }
 
 
-void Core::RTAccelerationStructure::Shutdown()
+void Core::RT::RTAccelerationStructure::Shutdown()
 {
 	auto device = m_context.getDevice();
 	PFN_vkDestroyAccelerationStructureKHR pfn_vkDestroyAccelerationStructureKHR =
@@ -46,7 +46,7 @@ void Core::RTAccelerationStructure::Shutdown()
 
 }
 
-VkDeviceAddress Core::RTAccelerationStructure::getBufferDeviceAddress(VkBuffer buffer) const
+VkDeviceAddress Core::RT::RTAccelerationStructure::getBufferDeviceAddress(VkBuffer buffer) const
 {
 	VkBufferDeviceAddressInfo addressInfo{};
 	addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
@@ -55,7 +55,7 @@ VkDeviceAddress Core::RTAccelerationStructure::getBufferDeviceAddress(VkBuffer b
 	return vkGetBufferDeviceAddress(m_context.getDevice(), &addressInfo);
 }
 
-Core::BLAS Core::RTAccelerationStructure::createBLAS(VkCommandBuffer cmd, const Mesh* mesh, VkDeviceAddress scratchAddress, bool allowUpdate)
+Core::RT::BLAS Core::RT::RTAccelerationStructure::createBLAS(VkCommandBuffer cmd, const Mesh* mesh, VkDeviceAddress scratchAddress, bool allowUpdate)
 {
 	BLAS blas;
 	blas.vertexCount = mesh->vertexCount;
@@ -98,7 +98,7 @@ Core::BLAS Core::RTAccelerationStructure::createBLAS(VkCommandBuffer cmd, const 
 	return blas;
 }
 
-void Core::RTAccelerationStructure::createBLASBuffer(BLAS& blas, const VkAccelerationStructureBuildSizesInfoKHR& sizeInfo)
+void Core::RT::RTAccelerationStructure::createBLASBuffer(BLAS& blas, const VkAccelerationStructureBuildSizesInfoKHR& sizeInfo)
 {
 	Core::BufferDesc desc{};
 	desc.name = "BLAS_Buffer";
@@ -110,7 +110,7 @@ void Core::RTAccelerationStructure::createBLASBuffer(BLAS& blas, const VkAcceler
 	blas.bufferhndl = m_resManager.CreateBuffer(desc);
 }
 
-void Core::RTAccelerationStructure::buildBLASGeometry(const Mesh* mesh, VkAccelerationStructureBuildGeometryInfoKHR& buildInfo, VkAccelerationStructureGeometryKHR& geometry, VkAccelerationStructureBuildRangeInfoKHR& rangeInfo)
+void Core::RT::RTAccelerationStructure::buildBLASGeometry(const Mesh* mesh, VkAccelerationStructureBuildGeometryInfoKHR& buildInfo, VkAccelerationStructureGeometryKHR& geometry, VkAccelerationStructureBuildRangeInfoKHR& rangeInfo)
 {
 	VkBuffer globalVB = m_resManager.GetGlobalVertexBuffer();
 	VkBuffer globalIB = m_resManager.GetGlobalIndexBuffer();
@@ -153,7 +153,7 @@ void Core::RTAccelerationStructure::buildBLASGeometry(const Mesh* mesh, VkAccele
 }
 
 
-void Core::RTAccelerationStructure::buildSceneBLAS(VkCommandBuffer cmd,const Scene* scene)
+void Core::RT::RTAccelerationStructure::buildSceneBLAS(VkCommandBuffer cmd,const Scene* scene)
 {
 	m_blasList.clear();
 	m_meshToBlasIndex.clear();
@@ -227,9 +227,11 @@ void Core::RTAccelerationStructure::buildSceneBLAS(VkCommandBuffer cmd,const Sce
 		VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
 		VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
 		0, 1, &barrier, 0, nullptr, 0, nullptr);
+
+	std::cout << "Built " << m_blasList.size() << " BLAS for scene" << std::endl;
 }
 
-void Core::RTAccelerationStructure::createTLASBuffer(TLAS& tlas, const VkAccelerationStructureBuildSizesInfoKHR& sizeInfo)
+void Core::RT::RTAccelerationStructure::createTLASBuffer(TLAS& tlas, const VkAccelerationStructureBuildSizesInfoKHR& sizeInfo)
 {
 	Core::BufferDesc desc{};
 	desc.name = "TLAS_Buffer";
@@ -241,7 +243,7 @@ void Core::RTAccelerationStructure::createTLASBuffer(TLAS& tlas, const VkAcceler
 	tlas.bufferhndl = m_resManager.CreateBuffer(desc);
 }
 
-void Core::RTAccelerationStructure::buildTLAS(VkCommandBuffer cmd, const std::vector<RTInstance>& instances, bool allowUpdate)
+void Core::RT::RTAccelerationStructure::buildTLAS(VkCommandBuffer cmd, const std::vector<RTInstance>& instances, bool allowUpdate)
 {
 	if (instances.empty()) {
 		throw std::runtime_error("Cannot build TLAS with no instances");
@@ -375,8 +377,11 @@ void Core::RTAccelerationStructure::buildTLAS(VkCommandBuffer cmd, const std::ve
 	const VkAccelerationStructureBuildRangeInfoKHR* pRangeInfo = &rangeInfo;
 	pfn_vkCmdBuildAccelerationStructuresKHR(cmd, 1, &buildInfo, &pRangeInfo);
 
+	std::cout << "Built TLAS with " << instanceCount << " instances, "
+		<< "size: " << sizeInfo.accelerationStructureSize << " bytes" << std::endl;
+
 }
-void Core::RTAccelerationStructure::updateTLAS(VkCommandBuffer cmd, const std::vector<RTInstance>& instances)
+void Core::RT::RTAccelerationStructure::updateTLAS(VkCommandBuffer cmd, const std::vector<RTInstance>& instances)
 {
 	Core::BufferBuilder::Buffer* instBuf = m_resManager.GetBuffer(m_tlas.instanceBufferhndl);
 
@@ -422,7 +427,7 @@ void Core::RTAccelerationStructure::updateTLAS(VkCommandBuffer cmd, const std::v
 }
 
 
-std::vector<Core::RTInstance> Core::RTAccelerationStructure::createInstancesFromScene(const Scene* scene)
+std::vector<Core::RT::RTInstance> Core::RT::RTAccelerationStructure::createInstancesFromScene(const Scene* scene)
 {
 	std::vector<RTInstance> instances;
 	const auto& objects = scene->GetObjects();

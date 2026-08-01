@@ -5,8 +5,8 @@
 #include <vector>
 #include <memory>
 #include <unordered_map>
-#include "Buffer.h"
-#include "ResourceTypes.h"
+#include "Vulkan/Core/Buffer.h"
+#include "Vulkan/Core/ResourceTypes.h"
 
 namespace Core
 {
@@ -15,6 +15,9 @@ namespace Core
 	class ResourceManager;
 	struct Mesh;
 	class Scene;
+}
+namespace Core::RT
+{
 
 	struct BLAS
 	{

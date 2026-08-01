@@ -27,7 +27,9 @@ UI/UILayer.cpp
 UI/UIPanels.cpp
 Vulkan/Passes/SSAOPass.cpp
 Vulkan/Passes/PointShadowPass.cpp
-Vulkan/Core/AccelerationStructure.cpp)
+Vulkan/Core/RayTracing/AccelerationStructure.cpp
+Vulkan/Core/RayTracing/ShaderBindingTable.cpp)
+
 
 set(HEADER_FILES
 Renderer.h
@@ -62,7 +64,8 @@ UI/UILayer.h
 UI/UIPanels.h
 Vulkan/Passes/SSAOPass.h
 Vulkan/Passes/PointShadowPass.h
-Vulkan/Core/AccelerationStructure.h)
+Vulkan/Core/RayTracing/AccelerationStructure.h
+Vulkan/Core/RayTracing/ShaderBindingTable.h)
 
 
 

@@ -110,13 +110,16 @@ void Renderer::SetupScene(Core::Scene* scene, const std::vector<Core::Mesh>& mes
     RegisterBindlessTextures(meshes);
 
     VkCommandBuffer cmd = Utils::beginSingleTimeCommands(context->getDevice(), context->getCommandPool());
-    m_accelerationStructure = Core::RTAccelerationStructureBuilder(*context, *resourceManager)
+    m_accelerationStructure = Core::RT::RTAccelerationStructureBuilder(*context, *resourceManager)
         .buildFromScene(cmd, scene)
         .allowTLASUpdates(true)
         .build();
     Utils::endSingleTimeCommands(context->getDevice(), context->getCommandPool(), context->getGraphicsQueue(),cmd);
 
     resourceManager->SetGlobalTLAS(m_accelerationStructure->getTLASHandle());
+
+    resourceManager->InitRTDescriptorSet();
+
 
     BuildRenderGraph(scene);
     renderGraph->InitProfiling(context->getDevice(), context->getPhysicalDevice(), Core::MAX_FRAMES_IN_FLIGHT);

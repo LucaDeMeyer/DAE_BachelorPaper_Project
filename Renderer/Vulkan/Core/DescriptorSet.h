@@ -137,6 +137,27 @@ namespace Core
             writes.push_back(write);
             return *this;
         }
+
+        DescriptorWriter& writeAccelerationStructure(uint32_t binding, const VkAccelerationStructureKHR* as)
+        {
+            VkWriteDescriptorSetAccelerationStructureKHR asWrite{};
+            asWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
+            asWrite.accelerationStructureCount = 1;
+            asWrite.pAccelerationStructures = as;
+
+            m_asWrites.push_back(asWrite);
+
+            VkWriteDescriptorSet write{};
+            write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            write.pNext = &m_asWrites.back();
+            write.dstBinding = binding;
+            write.descriptorCount = 1;
+            write.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+
+            writes.push_back(write);
+            return *this;
+        }
+
         /// @brief Commits all queued writes to the actual GPU Descriptor Set.
         void overwrite(VkDescriptorSet set, VkDevice device) {
             for (auto& write : writes) {
@@ -157,6 +178,7 @@ namespace Core
         std::deque<std::vector<VkDescriptorImageInfo>> imageArrayInfos;
 
         std::vector<VkWriteDescriptorSet> writes;
+        std::vector<VkWriteDescriptorSetAccelerationStructureKHR> m_asWrites;
     };
 }
 

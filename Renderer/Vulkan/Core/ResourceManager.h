@@ -107,8 +107,10 @@ namespace Core
 
         /// @brief Binds the global buffers and bindless texture arrays into a single Descriptor Set 0.
         void InitGlobalDescriptorSet();
+        void InitRTDescriptorSet();
 
         Core::DescriptorBuilder::DescriptorSet& GetGlobalDescriptorSet() { return m_globalDescriptorSet; }
+        Core::DescriptorBuilder::DescriptorSet& GetRTDescriptorSet() { return m_globalRTDescriptorSet; }
 
         std::vector<Core::BufferHandle> GetCameraUBO() { return m_cameraUBOs; }
         std::vector<Core::BufferHandle> GetInstanceSSBOs() { return m_instanceSSBOs; }
@@ -166,6 +168,7 @@ namespace Core
         std::vector<Core::BufferHandle> m_PointShadowUBOs;
 
         Core::DescriptorBuilder::DescriptorSet m_globalDescriptorSet;
+        Core::DescriptorBuilder::DescriptorSet m_globalRTDescriptorSet;
 
         VkSampler m_PointSampler = VK_NULL_HANDLE;
         VkSampler m_LinearSampler = VK_NULL_HANDLE;

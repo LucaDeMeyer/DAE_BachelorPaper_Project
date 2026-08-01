@@ -8,7 +8,7 @@
 #include <memory>
 #include <vector>
 
-#include "Vulkan/Core/AccelerationStructure.h"
+#include "Vulkan/Core/RayTracing/AccelerationStructure.h"
 #include "Vulkan/Core/GraphicsContext.h"
 #include "Vulkan/Core/Swapchain.h"
 #include "Vulkan/Core/Pipeline.h"
@@ -128,7 +128,7 @@ private:
     Core::TextureDesc m_ViewedTextureDesc{};
     VkDescriptorSet m_ViewedTextureID = VK_NULL_HANDLE;
 
-    std::unique_ptr<Core::RTAccelerationStructure> m_accelerationStructure;
+    std::unique_ptr<Core::RT::RTAccelerationStructure> m_accelerationStructure;
 };
 
 #endif

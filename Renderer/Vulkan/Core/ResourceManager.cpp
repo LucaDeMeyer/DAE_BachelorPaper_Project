@@ -528,6 +528,26 @@ void Core::ResourceManager::InitGlobalDescriptorSet()
     }
 }
 
+void Core::ResourceManager::InitRTDescriptorSet()
+{
+    m_globalRTDescriptorSet = Core::DescriptorBuilder(context)
+        .addLayoutBinding(0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
+            VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_COMPUTE_BIT)
+        .build(MAX_FRAMES_IN_FLIGHT);
+
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        Core::DescriptorWriter writer;
+
+        VkAccelerationStructureKHR tlas = GetGlobalTLAS();
+
+        if (tlas != VK_NULL_HANDLE) {
+            writer.writeAccelerationStructure(0, &tlas);
+            writer.overwrite(m_globalRTDescriptorSet.sets[i], context.getDevice());
+        }
+    }
+}
+
 void Core::ResourceManager::Shutdown()
 {
   
@@ -577,6 +597,7 @@ void Core::ResourceManager::Shutdown()
     m_currentIndexCount = 0;
 
     m_globalDescriptorSet.destroy(context.getDevice());
+    m_globalRTDescriptorSet.destroy(context.getDevice());
 }
 
 void Core::ResourceManager::DestroyTexture(TextureHandle handle)
