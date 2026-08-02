@@ -8,7 +8,7 @@
 
 namespace Core
 {
-    class GraphicsContext;
+    struct GraphicsContext;
     class ResourceManager;
 }
 namespace Core::RT
@@ -21,7 +21,6 @@ namespace Core::RT
         ShaderBindingTable(GraphicsContext& context, ResourceManager& resManager, VkPipeline pipeline, uint32_t missCount, uint32_t hitCount);
         ~ShaderBindingTable() = default;
 
-        // Cleans up the buffer handle via the ResourceManager
         void Shutdown();
 
         const VkStridedDeviceAddressRegionKHR* GetRaygenRegion() const { return &m_raygenRegion; }

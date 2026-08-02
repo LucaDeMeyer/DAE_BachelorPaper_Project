@@ -163,12 +163,5 @@ namespace RenderTypes
         int debugMode;
     };
 
-    struct ShaderBindingTable {
-        Core::BufferHandle bufferHandle;
-        VkStridedDeviceAddressRegionKHR raygenRegion{};
-        VkStridedDeviceAddressRegionKHR missRegion{};
-        VkStridedDeviceAddressRegionKHR hitRegion{};
-        VkStridedDeviceAddressRegionKHR callableRegion{};
-    };
 }
 #endif
