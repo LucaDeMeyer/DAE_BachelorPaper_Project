@@ -98,6 +98,12 @@ namespace Core
 			speed = newspeed;
 		}
 
+
+		void UpdateJitter(uint32_t frameIndex, uint32_t screenWidth, uint32_t screenHeight);
+		glm::mat4 GetUnjitteredProjectionMatrix() const { return unjitteredProjectionMatrix; }
+		glm::vec2 GetJitter() const { return jitter; }
+
+
 	private:
 
 		void UpdateCameraVectors();
@@ -125,6 +131,9 @@ namespace Core
 
 		float yaw{ -90.0f };
 		float pitch{ 0.0f };
+
+		glm::mat4 unjitteredProjectionMatrix{ 1.0f };
+		glm::vec2 jitter{ 0.0f, 0.0f };
 	};
 }
 #endif 

@@ -38,6 +38,7 @@ namespace Render::Pass
                 VK_FORMAT_R8G8B8A8_SRGB,
                 VK_FORMAT_R16G16B16A16_SFLOAT,
                 VK_FORMAT_R8G8B8A8_UNORM,
+                VK_FORMAT_R16G16_SFLOAT
             };
             geomConfig.depthFormat = VK_FORMAT_D32_SFLOAT;
             geomConfig.enableDepthTest = true;
@@ -65,12 +66,14 @@ namespace Render::Pass
        Render::Graph::RGHandle GetNormalHandle()   const { return m_Normal; }
        Render::Graph::RGHandle GetMaterialHandle() const { return m_Material; }
        Render::Graph::RGHandle GetDepthHandle()    const { return m_Depth; }
+       Render::Graph::RGHandle GetVelocityHandle()    const { return m_Velocity; }
 
     private:
         Render::Graph::RGHandle m_Albedo;
         Render::Graph::RGHandle m_Normal;
         Render::Graph::RGHandle m_Material;
         Render::Graph::RGHandle m_Depth;   
+        Render::Graph::RGHandle m_Velocity;
 
         VkExtent2D m_extent;
         std::unique_ptr<Core::PipelineBuilder::Pipeline> m_pipeline;

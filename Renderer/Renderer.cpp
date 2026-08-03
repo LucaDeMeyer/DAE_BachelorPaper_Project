@@ -15,6 +15,7 @@
 #include "Vulkan/Passes/ToneMappingPass.h"
 #include "Vulkan/Passes/PointShadowPass.h"
 #include "Vulkan/Passes/SSAOPass.h"
+#include "Vulkan/Passes/TAAPass.h"
 
 /*TODO: 
  *
@@ -120,6 +121,23 @@ void Renderer::SetupScene(Core::Scene* scene, const std::vector<Core::Mesh>& mes
 
     resourceManager->InitRTDescriptorSet();
 
+    for (int i = 0; i < 2; i++) {
+        if (m_taaHistory[i].IsValid()) {
+            resourceManager->DestroyTexture(m_taaHistory[i]);
+        }
+    }
+
+    Core::TextureDesc taaDesc{};
+    taaDesc.name = "TAA_History";
+    taaDesc.extent = { swapchain->extent.width, swapchain->extent.height, 1 };
+    taaDesc.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+    taaDesc.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    taaDesc.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    taaDesc.mipLevels = 1;
+    taaDesc.arrayLayers = 1;
+
+    m_taaHistory[0] = resourceManager->CreateTexture(taaDesc);
+    m_taaHistory[1] = resourceManager->CreateTexture(taaDesc);
 
     BuildRenderGraph(scene);
     renderGraph->InitProfiling(context->getDevice(), context->getPhysicalDevice(), Core::MAX_FRAMES_IN_FLIGHT);
@@ -145,6 +163,20 @@ void Renderer::BuildRenderGraph(Core::Scene* scene)
                 ext,VK_IMAGE_LAYOUT_UNDEFINED
             );
     }
+
+
+    Core::ImageBuilder::Image* taaImg0 = resourceManager->GetTexture(m_taaHistory[0]);
+    Core::ImageBuilder::Image* taaImg1 = resourceManager->GetTexture(m_taaHistory[1]);
+
+    VkExtent3D exttaa00 = { taaImg0->extent.width, taaImg0->extent.height, 1 };
+    VkExtent3D exttaa01 = { taaImg1->extent.width, taaImg1->extent.height, 1 };
+    Render::Graph::RGHandle rgTaaHistory0 = renderGraph->RegisterImportedImage(
+        taaImg0->image, taaImg0->format, exttaa00, VK_IMAGE_LAYOUT_UNDEFINED
+    );
+    Render::Graph::RGHandle rgTaaHistory1 = renderGraph->RegisterImportedImage(
+        taaImg1->image, taaImg1->format, exttaa01, VK_IMAGE_LAYOUT_UNDEFINED
+    );
+
 
     Core::ImageBuilder::Image* envImage = resourceManager->GetTexture(m_iblTextures.environmentCubemap);
     Core::ImageBuilder::Image* irrImage = resourceManager->GetTexture(m_iblTextures.irradianceCubemap);
@@ -214,6 +246,16 @@ void Renderer::BuildRenderGraph(Core::Scene* scene)
     auto& histogramPass = renderGraph->AddPass<Render::Pass::HistogramPass>("Histogram Pass",
         resourceManager.get());
 
+
+    auto& taaPass = renderGraph->AddPass<Render::Pass::TAAPass>(
+        "TAA Pass",
+        swapchain->extent,
+        resourceManager.get(),
+        rgTaaHistory0,
+        rgTaaHistory1, m_taaHistory[0], 
+        m_taaHistory[1]
+    );
+
     auto& ToneMappingPass = renderGraph->AddPass<Render::Pass::ToneMappingPass>("Tone Mapping Pass",
         swapchain->extent,
         resourceManager.get());
@@ -246,6 +288,25 @@ void Renderer::recreateSwapchain(Core::Scene* scene, Core::Camera* camera) {
     swapchain = std::make_unique<Core::SwapChainBuilder::SwapChain>(
         Core::SwapChainBuilder(*context).setExtent(width, height).build()
     );
+
+    for (int i = 0; i < 2; i++) {
+        if (m_taaHistory[i].IsValid()) {
+            resourceManager->DestroyTexture(m_taaHistory[i]);
+        }
+    }
+
+    Core::TextureDesc taaDesc{};
+    taaDesc.name = "TAA_History";
+    taaDesc.extent = { swapchain->extent.width, swapchain->extent.height, 1 };
+    taaDesc.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+    taaDesc.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    taaDesc.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    taaDesc.mipLevels = 1;
+    taaDesc.arrayLayers = 1;
+
+    m_taaHistory[0] = resourceManager->CreateTexture(taaDesc);
+    m_taaHistory[1] = resourceManager->CreateTexture(taaDesc);
+
 
     BuildRenderGraph(scene);
 
@@ -392,6 +453,10 @@ void Renderer::UpdateBuffers(uint32_t frameIDX, Core::Scene* scene, Core::Camera
 {
     auto* allocator = context->getAllocator();
 
+    m_absoluteFrameCount++;
+    
+    camera->UpdateJitter(m_absoluteFrameCount, swapchain->extent.width, swapchain->extent.height);
+
     RenderTypes::CameraUBO ubo{};
     ubo.view = camera->GetViewMatrix();
     ubo.proj = camera->GetProjectionMatrix();
@@ -400,6 +465,10 @@ void Renderer::UpdateBuffers(uint32_t frameIDX, Core::Scene* scene, Core::Camera
 
     glm::mat4 viewProj = ubo.proj * ubo.view;
     ubo.invViewProj = glm::inverse(viewProj);
+    ubo.invProjUnjittered = glm::inverse(camera->GetUnjitteredProjectionMatrix());
+
+    ubo.viewProj = viewProj;
+    ubo.prevViewProj = m_prevViewProj;
 
     auto* uboBuffer = resourceManager->GetBuffer(resourceManager->GetCameraUBO()[frameIDX]);
     void* data = allocator->map<void>(uboBuffer->allocation);
@@ -493,6 +562,8 @@ void Renderer::UpdateBuffers(uint32_t frameIDX, Core::Scene* scene, Core::Camera
     Core::BufferBuilder::Buffer* buf = resourceManager->GetBuffer(resourceManager->GetPointShadowUBOs()[frameIDX]);
     if (buf->mapped)
         memcpy(buf->mapped, allMatrices.data(), allMatrices.size() * sizeof(glm::mat4));
+
+    m_prevViewProj = camera->GetUnjitteredProjectionMatrix() * ubo.view;
 
 }
 

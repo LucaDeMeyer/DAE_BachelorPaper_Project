@@ -3,6 +3,18 @@
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
 
+float Halton(uint32_t index, uint32_t base) {
+	float f = 1.0f;
+	float r = 0.0f;
+	while (index > 0) {
+		f = f / static_cast<float>(base);
+		r = r + f * static_cast<float>(index % base);
+		index = index / base;
+	}
+	return r;
+}
+
+
 void Core::Camera::InitCamera(float ar, float _fovAngle, float _nearPlane, float _farPlane, glm::vec3 _origin,float _speed)
 {
 	fovAngle = _fovAngle;
@@ -25,10 +37,32 @@ void Core::Camera::CalcViewMatrix()
 	inverseViewMatrix = glm::inverse(viewMatrix);
 }
 
+void Core::Camera::UpdateJitter(uint32_t frameIndex, uint32_t screenWidth, uint32_t screenHeight)
+{
+
+	uint32_t jitterPhase = frameIndex % 16;
+
+	float jitterX = Halton(jitterPhase + 1, 2) - 0.5f;
+	float jitterY = Halton(jitterPhase + 1, 3) - 0.5f;
+
+	
+	jitter.x = (jitterX * 2.0f) / static_cast<float>(screenWidth);
+	jitter.y = (jitterY * 2.0f) / static_cast<float>(screenHeight);
+
+	CalcProjectionMatrix();
+}
+
+
 void Core::Camera::CalcProjectionMatrix()
 {
-	projectionMatrix = glm::perspective(glm::radians(fovAngle), aspectRatio, nearplane, farplane);
-	projectionMatrix[1][1] *= -1;
+	unjitteredProjectionMatrix = glm::perspective(glm::radians(fovAngle), aspectRatio, nearplane, farplane);
+	unjitteredProjectionMatrix[1][1] *= -1;
+
+	projectionMatrix = unjitteredProjectionMatrix;
+
+	
+	projectionMatrix[2][0] += jitter.x;
+	projectionMatrix[2][1] += jitter.y;
 }
 
 void Core::Camera::ProcessKeyboard(GLFWwindow* window, float deltaTime)

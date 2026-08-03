@@ -15,7 +15,7 @@ Render::Pass::ToneMappingPass::~ToneMappingPass()
 }
 void Render::Pass::ToneMappingPass::Setup(Graph::RenderGraphBuilder& builder)
 {
-	m_hdrInput = builder.FindResource("LightingOut");
+	m_hdrInput = builder.FindResource("TAA_Output");
 	builder.AddDependency(m_hdrInput, Graph::AccessType::ComputeShaderRead);
 
     Core::TextureDesc ldrDesc{};

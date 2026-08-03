@@ -23,6 +23,9 @@ layout(set = 0, binding = 0) uniform CameraUBO {
     mat4 invView;
     mat4 invProj;
     mat4 invViewProj;
+    mat4 invProjUnjitterd;
+        mat4 viewProj;
+    mat4 prevViewProj;
 } camera;
 
 layout(buffer_reference, scalar) readonly buffer VertexBuffer {
@@ -45,7 +48,8 @@ layout(location = 1) out vec3 outNormal;
 layout(location = 2) out vec3 outTangent;   
 layout(location = 3) out vec3 outBitangent;
 layout(location = 4) out flat uint outMaterialID;
-
+layout(location = 5) out vec4 outCurrClipPos;
+layout(location = 6) out vec4 outPrevClipPos;
 
 void main()
 {
@@ -53,7 +57,16 @@ void main()
     Vertex v = vb.vertices[gl_VertexIndex];
     InstanceData i = instances[pushConstants.instanceID];
 
-    gl_Position  = camera.proj * camera.view * i.model * vec4(v.position, 1.0);
+    mat4 unjitteredProj = inverse(camera.invProjUnjitterd);
+    mat4 unjitteredViewProj = unjitteredProj * camera.view;
+
+    vec4 worldPos = i.model * vec4(v.position, 1.0);
+
+    outCurrClipPos = unjitteredViewProj * worldPos;
+    outPrevClipPos = camera.prevViewProj * worldPos;
+
+   gl_Position = camera.proj * camera.view * i.model * vec4(v.position, 1.0);
+
     outTexCoord  = v.texCoord;
 
     // If a 3D model is scaled non-uniformly (e.g., squashed into a pancake), simply 

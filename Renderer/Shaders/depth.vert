@@ -24,6 +24,9 @@ layout(set = 0, binding = 0) uniform CameraUBO {
     mat4 invView;
     mat4 invProj;
     mat4 invViewProj;
+    mat4 invProjUnjitterd;
+    mat4 viewProj;
+    mat4 prevViewProj;
 } camera;
 
 layout(buffer_reference, scalar) readonly buffer VertexBuffer {

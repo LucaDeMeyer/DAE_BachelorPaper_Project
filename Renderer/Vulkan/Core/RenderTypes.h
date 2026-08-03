@@ -101,6 +101,9 @@ namespace RenderTypes
         alignas(16) glm::mat4 invView;
         alignas(16) glm::mat4 invProj;
         alignas(16) glm::mat4 invViewProj;
+        alignas(16) glm::mat4 invProjUnjittered;
+        alignas(16) glm::mat4 viewProj;      
+        alignas(16) glm::mat4 prevViewProj;
     };
 
     /// @brief Per-instance data for hardware instancing (Aligned to GLSL std140).

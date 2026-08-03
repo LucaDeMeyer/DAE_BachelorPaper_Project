@@ -49,6 +49,19 @@ void Render::Pass::GeometryPass::Setup(Graph::RenderGraphBuilder& builder)
 
     m_Depth = builder.FindResource("SceneDepth");
     builder.AddDependency(m_Depth, Graph::AccessType::DepthRead);
+
+    Core::TextureDesc velDesc{};
+    velDesc.name = "VelocityMap";
+    velDesc.extent = { m_extent.width, m_extent.height, 1 };
+    velDesc.format = VK_FORMAT_R16G16_SFLOAT;
+    velDesc.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    velDesc.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    velDesc.mipLevels = 1;
+    velDesc.arrayLayers = 1;
+
+    m_Velocity = builder.CreateTexture(velDesc);
+    builder.AddDependency(m_Velocity, Graph::AccessType::ColorAttachmentWrite);
+
 }
 void Render::Pass::GeometryPass::Execute(const RenderTypes::RenderContext& context, Render::Graph::RenderGraph& graph)
 {
@@ -56,8 +69,9 @@ void Render::Pass::GeometryPass::Execute(const RenderTypes::RenderContext& conte
     Core::ImageBuilder::Image* normalImage = context.resourceManager->GetTexture(graph.GetResource(m_Normal).physicalTexture);
     Core::ImageBuilder::Image* materialImage = context.resourceManager->GetTexture(graph.GetResource(m_Material).physicalTexture);
     Core::ImageBuilder::Image* depthImage = context.resourceManager->GetTexture(graph.GetResource(m_Depth).physicalTexture);
+    Core::ImageBuilder::Image* velocity = context.resourceManager->GetTexture(graph.GetResource(m_Velocity).physicalTexture);
 
-    VkRenderingAttachmentInfo colorAttachments[3]{};
+    VkRenderingAttachmentInfo colorAttachments[4]{};
 
     colorAttachments[0] = {
         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -94,11 +108,20 @@ void Render::Pass::GeometryPass::Execute(const RenderTypes::RenderContext& conte
         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
     };
 
+    colorAttachments[3] = {
+         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+        .imageView = velocity->view,
+        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .clearValue = {.color = { 0.0f, 0.0f, 0.0f, 0.0f } }
+    };
+
     VkRenderingInfo renderingInfo{
         .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
         .renderArea = { {0, 0}, m_extent },
         .layerCount = 1,
-        .colorAttachmentCount = 3,
+        .colorAttachmentCount = 4,
         .pColorAttachments = colorAttachments,
         .pDepthAttachment = &depthAttachment
     };

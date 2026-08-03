@@ -129,6 +129,12 @@ private:
     VkDescriptorSet m_ViewedTextureID = VK_NULL_HANDLE;
 
     std::unique_ptr<Core::RT::RTAccelerationStructure> m_accelerationStructure;
+
+    glm::mat4 m_prevViewProj{ 1.0f };
+
+    Core::TextureHandle m_taaHistory[2];
+
+    uint32_t m_absoluteFrameCount = 0;
 };
 
 #endif

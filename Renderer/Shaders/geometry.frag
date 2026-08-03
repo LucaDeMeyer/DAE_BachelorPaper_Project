@@ -7,10 +7,13 @@ layout(location = 2) in vec3 inTangent;
 layout(location = 3) in vec3 inBitangent;  
 layout(location = 4) in flat uint inMaterialID;
 
+layout(location = 5) in vec4 inCurrClipPos;
+layout(location = 6) in vec4 inPrevClipPos;
 
 layout(location = 0) out vec4 outAlbedo;
 layout(location = 1) out vec4 outNormal;
 layout(location = 2) out vec4 outMaterial;
+layout(location = 3) out vec2 outVelocity;
 
 layout(set = 0, binding = 4) uniform sampler2D textures[];
 
@@ -42,4 +45,13 @@ void main()
     // GLTF standard packs Roughness into Green and Metallic into Blue
     vec4 mr = texture(textures[nonuniformEXT(materialIdx)], inTexCoord);
     outMaterial = vec4(mr.b, mr.g, 0.0, 1.0); 
+
+    vec2 currNDC = inCurrClipPos.xy / inCurrClipPos.w;
+    vec2 prevNDC = inPrevClipPos.xy / inPrevClipPos.w;
+
+    vec2 currUV = currNDC * 0.5 + 0.5;
+    vec2 prevUV = prevNDC * 0.5 + 0.5;
+
+    outVelocity = currUV - prevUV;
+  
 }

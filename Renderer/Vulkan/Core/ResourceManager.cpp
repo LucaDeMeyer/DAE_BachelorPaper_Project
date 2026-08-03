@@ -500,7 +500,7 @@ void Core::ResourceManager::InitGlobalDescriptorSet()
 {
     m_globalDescriptorSet = Core::DescriptorBuilder(context)
         .addLayoutBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
+            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT)
         .addLayoutBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
             VK_SHADER_STAGE_VERTEX_BIT)
         .addLayoutBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,

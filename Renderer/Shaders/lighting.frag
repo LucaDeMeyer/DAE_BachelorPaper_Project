@@ -35,6 +35,9 @@ layout(set = 0, binding = 0) uniform CameraUBO {
     mat4 invView;
     mat4 invProj;
     mat4 invViewProj;
+    mat4 invProjUnjittered;
+    mat4 viewProj;
+    mat4 prevViewProj;
 } camera;
 
 layout(set = 0, binding = 3) readonly buffer LightData {
@@ -194,7 +197,7 @@ void main()
   if (depth >= 1.0) {
     vec2 ndc = inUV * 2.0 - 1.0;
     vec4 clipPos = vec4(ndc, 1.0, 1.0);
-    vec4 viewPos = camera.invProj * clipPos;
+    vec4 viewPos = camera.invProjUnjittered * clipPos;
     viewPos.w = 0.0;
     vec3 worldDir = normalize((camera.invView * viewPos).xyz);
     
