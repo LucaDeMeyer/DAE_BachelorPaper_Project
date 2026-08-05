@@ -239,7 +239,8 @@ void Renderer::BuildRenderGraph(Core::Scene* scene)
         resourceManager.get(),
         scene);
 
-    auto& RTShadowPass = renderGraph->AddPass<Render::Pass::RTShadowPass>("RT Shadow Pass", resourceManager.get(), swapchain->extent);
+    if (m_RTShadowMode == 1)
+		auto& RTShadowPass = renderGraph->AddPass<Render::Pass::RTShadowPass>("RT Shadow Pass", resourceManager.get(), swapchain->extent);
 
     auto& lightingPass = renderGraph->AddPass<Render::Pass::DefferdLightingPass>("Deffered lighting pass",
         swapchain->extent,

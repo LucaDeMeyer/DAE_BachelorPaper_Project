@@ -79,16 +79,16 @@ namespace Core
         // Miss
         for (uint32_t i = 0; i < missCount; ++i) {
             memcpy(pData + raygenRegionSize + i * handleSizeAligned,
-                shaderHandleStorage.data() + handleIdx * handleSize, // source uses raw handleSize!
-                handleSize); // copy only the true handle bytes
+                shaderHandleStorage.data() + handleIdx * handleSize,
+                handleSize); 
             handleIdx++;
         }
 
         // Hit
         for (uint32_t i = 0; i < hitCount; ++i) {
             memcpy(pData + raygenRegionSize + missRegionSize + i * handleSizeAligned,
-                shaderHandleStorage.data() + handleIdx * handleSize, // source uses raw handleSize!
-                handleSize); // copy only the true handle bytes
+                shaderHandleStorage.data() + handleIdx * handleSize, 
+                handleSize); 
             handleIdx++;
         }
 

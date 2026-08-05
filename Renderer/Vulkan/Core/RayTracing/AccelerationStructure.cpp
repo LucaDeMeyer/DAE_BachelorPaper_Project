@@ -146,7 +146,7 @@ void Core::RT::RTAccelerationStructure::buildBLASGeometry(const Mesh* mesh, VkAc
 	rangeInfo = {};
 	rangeInfo.primitiveCount = mesh->indexCount / 3;
 	rangeInfo.primitiveOffset = mesh->firstIndex * sizeof(uint32_t);
-	rangeInfo.firstVertex =0;
+	rangeInfo.firstVertex = 0;
 	rangeInfo.transformOffset = 0;
 
 }

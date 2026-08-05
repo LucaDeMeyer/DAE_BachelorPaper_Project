@@ -182,6 +182,7 @@ namespace UI {
             bool useRT = (*m_enableRTShadows == 1);
             if (ImGui::Checkbox("Enable Ray Traced Shadows", &useRT)) {
                 *m_enableRTShadows = useRT ? 1 : 0;
+                *m_graphNeedsRebuild = true;
             }
         }
         ImGui::End();

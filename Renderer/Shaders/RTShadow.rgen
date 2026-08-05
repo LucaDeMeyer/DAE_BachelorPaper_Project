@@ -64,19 +64,16 @@ void main()
         imageStore(outShadowMask, pixelCoord, vec4(0.0));
         return;
     }
-    // Shift origin slightly to prevent self-intersection (acne)
+  
     float normalBias = 0.002; 
-    
-    // 2. Add a push along the light direction to clear normal map bumps
+ 
     float lightBias = 0.005;  
     
     vec3 origin = worldPos + (normal * normalBias) + (lightDir * lightBias);
-    
-    // 3. Drop tMin significantly so it catches nearby geometry
+ 
     float tMin = 0.001; 
     float tMax = 1000.0;
 
-    // Default to shadow (0.0). The miss shader will flip this to 1.0 if it hits the sky.
     hitValue = 0.0;
 
     uint rayFlags = gl_RayFlagsTerminateOnFirstHitEXT | 
