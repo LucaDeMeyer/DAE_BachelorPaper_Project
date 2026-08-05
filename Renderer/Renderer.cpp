@@ -14,6 +14,7 @@
 #include "Vulkan/Passes/ShadowPass.h"
 #include "Vulkan/Passes/ToneMappingPass.h"
 #include "Vulkan/Passes/PointShadowPass.h"
+#include "Vulkan/Passes/RTPointShadowPass.h"
 #include "Vulkan/Passes/RTShadowPass.h"
 #include "Vulkan/Passes/SSAOPass.h"
 #include "Vulkan/Passes/TAAPass.h"
@@ -240,8 +241,12 @@ void Renderer::BuildRenderGraph(Core::Scene* scene)
         scene);
 
     if (m_RTShadowMode == 1)
-		auto& RTShadowPass = renderGraph->AddPass<Render::Pass::RTShadowPass>("RT Shadow Pass", resourceManager.get(), swapchain->extent);
+    {
+        auto& RTShadowPass = renderGraph->AddPass<Render::Pass::RTShadowPass>("RT Shadow Pass", resourceManager.get(), swapchain->extent);
+        auto& RTPointShadowPass = renderGraph->AddPass<Render::Pass::RTPointShadowPass>("RT Point Shadow Pass", resourceManager.get(), swapchain->extent);
 
+
+    }
     auto& lightingPass = renderGraph->AddPass<Render::Pass::DefferdLightingPass>("Deffered lighting pass",
         swapchain->extent,
         resourceManager.get(),

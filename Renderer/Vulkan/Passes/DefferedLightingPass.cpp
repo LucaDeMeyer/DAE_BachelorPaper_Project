@@ -74,6 +74,10 @@ void Render::Pass::DefferdLightingPass::Setup(Graph::RenderGraphBuilder& builder
         builder.AddDependency(m_rtShadowMask, Graph::AccessType::ShaderRead);
     }
 
+    m_rtPointShadowMask = builder.FindResource("RT_PointShadowMask");
+    if (m_rtPointShadowMask.IsValid()) {
+        builder.AddDependency(m_rtPointShadowMask, Graph::AccessType::ShaderRead);
+    }
 
 }
 
@@ -108,10 +112,16 @@ void Render::Pass::DefferdLightingPass::Execute(const RenderTypes::RenderContext
         shadowImageInfos.push_back(info);
     }
 
-    VkImageView rtShadowView = ssaoImage->view; // just a fall back if RT shadows are off so descriptors are satisfied 
+    VkImageView rtShadowView = ssaoImage->view; // just a fall-back if RT shadows are off so descriptors are satisfied 
     if (m_rtShadowMask.IsValid()) {
         auto* imgRTShadow = context.resourceManager->GetTexture(graph.GetResource(m_rtShadowMask).physicalTexture);
         rtShadowView = imgRTShadow->view;
+    }
+
+    VkImageView rtPointShadowView = ssaoImage->view;
+    if (m_rtPointShadowMask.IsValid()) {
+        auto* imgRTPointShadow = context.resourceManager->GetTexture(graph.GetResource(m_rtPointShadowMask).physicalTexture);
+        rtPointShadowView = imgRTPointShadow->view;
     }
 
     Core::DescriptorWriter writer;
@@ -126,6 +136,7 @@ void Render::Pass::DefferdLightingPass::Execute(const RenderTypes::RenderContext
         .writeImage(8, shadowImage->view,context.resourceManager->GetShadowSampler(),VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
         .writeImage(9,ssaoImage->view,context.resourceManager->GetPointSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
         .writeBuffer(10,context.resourceManager->GetBuffer(context.resourceManager->GetCascadeUBOs()[context.resourceManager->GetFrameIndex()])->buffer,0, sizeof(RenderTypes::CascadeUBO),VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+        .writeImage(13, rtPointShadowView, m_resourceManager->GetPointSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
         .writeImage(12, rtShadowView, m_resourceManager->GetPointSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
         .overwrite(m_LightingDescriptors.sets[context.resourceManager->GetFrameIndex()], context.resourceManager->GetContext().getDevice());
 

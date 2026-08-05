@@ -30,7 +30,8 @@ Vulkan/Passes/PointShadowPass.cpp
 Vulkan/Core/RayTracing/AccelerationStructure.cpp
 Vulkan/Core/RayTracing/ShaderBindingTable.cpp
 Vulkan/Passes/RTShadowPass.cpp
-Vulkan/Passes/TAAPass.cpp)
+Vulkan/Passes/TAAPass.cpp
+Vulkan/Passes/RTPointShadowPass.cpp)
 
 
 set(HEADER_FILES
@@ -69,7 +70,8 @@ Vulkan/Passes/PointShadowPass.h
 Vulkan/Core/RayTracing/AccelerationStructure.h
 Vulkan/Core/RayTracing/ShaderBindingTable.h
 Vulkan/Passes/RTShadowPass.h
-Vulkan/Passes/TAAPass.h)
+Vulkan/Passes/TAAPass.h
+Vulkan/Passes/RTPointShadowPass.h)
 
 
 

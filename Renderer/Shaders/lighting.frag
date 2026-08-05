@@ -77,6 +77,8 @@ layout(set = 1, binding = 11) uniform samplerCubeShadow pointShadowMaps[10];
 
 layout(set = 1, binding = 12) uniform sampler2D rtShadowMask;
 
+layout(set = 1, binding =13) uniform sampler2DArray rtPointShadowMask;
+ 
 float CalculateShadow(vec3 worldPos, vec3 N, vec3 L,vec2 uv)
 {
 
@@ -129,8 +131,14 @@ if (debugPushConst.useRTShadows == 1) {
     return shadow;
 }
 
-float CalculatePointShadow(vec3 worldPos, PointLight light, vec3 N, uint lightIndex)
+float CalculatePointShadow(vec3 worldPos, PointLight light, vec3 N, uint lightIndex,vec2 uv)
 {
+
+    if (debugPushConst.useRTShadows == 1) {
+       
+        return texture(rtPointShadowMask, vec3(uv, float(lightIndex))).r;
+    }
+
     vec3 fragToLight = worldPos - light.position.xyz;
     float currentDist = length(fragToLight);
     
@@ -278,7 +286,7 @@ void main()
         float E = I / dist2;          // Convert Candelas to Lux (Illuminance)
        
         // Calculate shadows early and bake them directly into the radiance
-        float shadow = CalculatePointShadow(worldPos, light,N, i);
+        float shadow = CalculatePointShadow(worldPos, light,N, i,inUV);
         vec3 radiance = light.color.rgb * E * shadow;
 
 

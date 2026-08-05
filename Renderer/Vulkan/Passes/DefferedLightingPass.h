@@ -47,6 +47,7 @@ namespace Render::Pass
 				.addLayoutBinding(11, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT,
 					Core::MAX_POINT_LIGHTS, VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT)
 				.addLayoutBinding(12, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+			.addLayoutBinding(13, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
 				.build(Core::MAX_FRAMES_IN_FLIGHT);
 
 
@@ -89,7 +90,9 @@ namespace Render::Pass
 		Render::Graph::RGHandle m_Depth;
 		Render::Graph::RGHandle m_shadowMap;
 		Render::Graph::RGHandle m_ssaoMap;
+
 		Graph::RGHandle m_rtShadowMask;
+		Graph::RGHandle m_rtPointShadowMask;
 
 		std::vector<Render::Graph::RGHandle> m_pointShadowMaps;
 
