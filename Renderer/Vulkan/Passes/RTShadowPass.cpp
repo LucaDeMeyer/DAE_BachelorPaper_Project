@@ -14,17 +14,27 @@ void Render::Pass::RTShadowPass::Setup(Graph::RenderGraphBuilder& builder)
     m_shadowMask = builder.CreateTexture(maskDesc);
 
     builder.AddDependency(m_shadowMask, Graph::AccessType::ComputeShaderWrite);
+
+    m_Depth = builder.FindResource("SceneDepth");
+    builder.AddDependency(m_Depth, Graph::AccessType::ComputeShaderRead);
+
+    m_Normal = builder.FindResource("GBuffer_Normal");
+    builder.AddDependency(m_Normal, Graph::AccessType::ComputeShaderRead);
 }
 
 void Render::Pass::RTShadowPass::Execute(const RenderTypes::RenderContext& context, Render::Graph::RenderGraph& graph)
 {
     Core::ImageBuilder::Image* maskImage = context.resourceManager->GetTexture(graph.GetResource(m_shadowMask).physicalTexture);
 
+    Core::ImageBuilder::Image* depthImage = context.resourceManager->GetTexture(graph.GetResource(m_Depth).physicalTexture);
+    Core::ImageBuilder::Image* normalImage = context.resourceManager->GetTexture(graph.GetResource(m_Normal).physicalTexture);
+
     Core::DescriptorWriter writer;
-    writer.writeImage(0, maskImage->view, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
+    writer.writeImage(0, depthImage->view, context.resourceManager->GetLinearSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+        .writeImage(1, normalImage->view, context.resourceManager->GetLinearSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+        .writeImage(2, maskImage->view, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
         .overwrite(m_descriptorSet.sets[context.currentFrameIndex], m_resourceManager->GetContext().getDevice());
 
-   
     vkCmdBindPipeline(context.cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_pipeline->pipeline);
 
     std::vector<VkDescriptorSet> boundSets = {

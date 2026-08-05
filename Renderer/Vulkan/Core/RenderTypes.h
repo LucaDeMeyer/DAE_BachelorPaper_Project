@@ -92,6 +92,7 @@ namespace RenderTypes
         float deltaTime;
         int debugViewMode;
         PhysicalCameraSettings cameraSettings;
+        int m_enableRTShadows;
     };
 
     /// @brief Global View/Projection matrices (Aligned to GLSL std140).
@@ -164,6 +165,7 @@ namespace RenderTypes
     struct LightingDebugPushConstant
     {
         int debugMode;
+        int useRTShadows;
     };
 
 }

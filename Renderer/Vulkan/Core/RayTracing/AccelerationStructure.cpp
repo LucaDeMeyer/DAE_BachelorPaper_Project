@@ -118,15 +118,14 @@ void Core::RT::RTAccelerationStructure::buildBLASGeometry(const Mesh* mesh, VkAc
 	VkDeviceAddress vertexAddress = getBufferDeviceAddress(globalVB);
 	VkDeviceAddress indexAddress = getBufferDeviceAddress(globalIB);
 
-	vertexAddress += mesh->vertexOffset * sizeof(RenderTypes::Vertex);
-	indexAddress += mesh->firstIndex * sizeof(uint32_t);
-
 	VkAccelerationStructureGeometryTrianglesDataKHR triangles{};
 	triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
 	triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
 	triangles.vertexData.deviceAddress = vertexAddress;
 	triangles.vertexStride = sizeof(RenderTypes::Vertex);
-	triangles.maxVertex = mesh->vertexCount - 1;
+
+	triangles.maxVertex = mesh->vertexOffset + mesh->vertexCount - 1;
+
 	triangles.indexType = VK_INDEX_TYPE_UINT32;
 	triangles.indexData.deviceAddress = indexAddress;
 
@@ -146,8 +145,8 @@ void Core::RT::RTAccelerationStructure::buildBLASGeometry(const Mesh* mesh, VkAc
 
 	rangeInfo = {};
 	rangeInfo.primitiveCount = mesh->indexCount / 3;
-	rangeInfo.primitiveOffset = 0;
-	rangeInfo.firstVertex = 0;
+	rangeInfo.primitiveOffset = mesh->firstIndex * sizeof(uint32_t);
+	rangeInfo.firstVertex =0;
 	rangeInfo.transformOffset = 0;
 
 }
@@ -215,7 +214,7 @@ void Core::RT::RTAccelerationStructure::buildSceneBLAS(VkCommandBuffer cmd,const
 		uint32_t primitiveCount = mesh->indexCount / 3;
 		pfn_vkGetAccelerationStructureBuildSizesKHR(m_context.getDevice(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &geomInfo, &primitiveCount, &sizeinfo);
 
-		currentScratchAddress += sizeinfo.buildScratchSize;
+		currentScratchAddress = alignUp(currentScratchAddress + sizeinfo.buildScratchSize, scratchAlignment);
 	}
 
 	VkMemoryBarrier barrier{};
@@ -443,7 +442,7 @@ std::vector<Core::RT::RTInstance> Core::RT::RTAccelerationStructure::createInsta
 		VkDeviceAddress address = m_blasList[blasIndex].deviceAddress;
 
 		RTInstance instance{};
-		instance.transform = object.transform;
+		instance.transform = object.localTransform;
 		instance.instanceCustomIndex = object.mesh->bindlessID;
 		instance.mask = 0xFF;
 		instance.instanceShaderBindingTableRecordOffset = 0;

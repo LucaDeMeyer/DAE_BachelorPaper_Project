@@ -57,14 +57,11 @@ void main()
         }
     }
 if (closestDepth >= 0.99999) {
-        // 1. Get the view-space ray direction
         vec4 target = ubo.invProjUnjittered * vec4(uv * 2.0 - 1.0, 1.0, 1.0);
         vec3 viewDir = target.xyz / target.w;
         
-        // 2. Convert to world-space direction (w = 0.0 ignores translation)
         vec3 worldDir = (ubo.invView * vec4(viewDir, 0.0)).xyz;
         
-        // 3. Project that direction using the PREVIOUS frame's matrices
         vec4 prevClip = ubo.prevViewProj * vec4(worldDir, 0.0);
         vec2 prevNDC = prevClip.xy / prevClip.w;
         

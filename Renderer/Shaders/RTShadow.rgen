@@ -1,0 +1,100 @@
+#version 460
+#extension GL_EXT_ray_tracing : require
+#extension GL_EXT_nonuniform_qualifier : require
+
+#include "Common/LightingHelpers.glsl"
+#include "Common/CommonHelpers.glsl"
+layout(location = 0) rayPayloadEXT float hitValue;
+
+layout(set = 0, binding = 0) uniform CameraUBO {
+    mat4 view;
+    mat4 proj;
+    mat4 invView;
+    mat4 invProj;
+    mat4 invViewProj;
+    mat4 invProjUnjittered;
+    mat4 viewProj;
+    mat4 prevViewProj;
+} camera;
+
+layout(set = 1, binding = 0) uniform accelerationStructureEXT topLevelAS;
+
+struct PointLight {
+    vec4 position;
+    vec4 color;
+};
+
+struct DirectionalLight {
+    vec4 direction;
+    vec4 color;
+};
+
+layout(set = 0, binding = 3) readonly buffer LightData {
+    DirectionalLight dirLight;
+    uint pointLightCount;
+    float padding[3];
+    PointLight pointLights[];
+} sceneLights;
+
+layout(set = 2, binding = 0) uniform sampler2D samplerDepth;
+layout(set = 2, binding = 1) uniform sampler2D samplerNormal;
+layout(set = 2, binding = 2, r8) uniform writeonly image2D outShadowMask; 
+
+void main() 
+{
+    ivec2 pixelCoord = ivec2(gl_LaunchIDEXT.xy);
+    vec2 resolution = vec2(gl_LaunchSizeEXT.xy);
+    vec2 uv = (vec2(pixelCoord) + 0.5) / resolution;
+
+    float depth = texture(samplerDepth, uv).r;
+
+    // Fast skybox clear (1.0 = fully lit)
+    if (depth >= 0.9999) {
+        imageStore(outShadowMask, pixelCoord, vec4(1.0));
+        return;
+    }
+    vec3 worldPos = reconstructWorldPos(depth, uv, camera.invViewProj);
+    vec3 normal = normalize(texture(samplerNormal, uv).xyz);
+     vec3 lightDir = normalize(-sceneLights.dirLight.direction.xyz);
+
+  
+    float NoL = dot(normal, lightDir);
+    if (NoL <= 0.0) {
+        // Surface faces away from the sun -> strictly in shadow
+        imageStore(outShadowMask, pixelCoord, vec4(0.0));
+        return;
+    }
+    // Shift origin slightly to prevent self-intersection (acne)
+    float normalBias = 0.002; 
+    
+    // 2. Add a push along the light direction to clear normal map bumps
+    float lightBias = 0.005;  
+    
+    vec3 origin = worldPos + (normal * normalBias) + (lightDir * lightBias);
+    
+    // 3. Drop tMin significantly so it catches nearby geometry
+    float tMin = 0.001; 
+    float tMax = 1000.0;
+
+    // Default to shadow (0.0). The miss shader will flip this to 1.0 if it hits the sky.
+    hitValue = 0.0;
+
+    uint rayFlags = gl_RayFlagsTerminateOnFirstHitEXT | 
+                    gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;;
+
+    traceRayEXT(
+        topLevelAS,    // The BVH
+        rayFlags,      // Optimization flags
+        0xFF,          // Cull mask 
+        0,             // sbtRecordOffset
+        0,             // sbtRecordStride
+        0,             // missIndex 
+        origin,        // Ray Origin
+        tMin,          // Ray Min Distance
+        lightDir,      // Ray Direction
+        tMax,          // Ray Max Distance
+        0              // Payload Location 
+    );
+
+    imageStore(outShadowMask, pixelCoord, vec4(hitValue));
+}

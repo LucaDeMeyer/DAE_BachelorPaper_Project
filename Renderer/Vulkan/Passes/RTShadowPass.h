@@ -19,12 +19,14 @@ namespace Render::Pass
                : Pass(name), m_resourceManager(resManager),m_Extent(extent)
            {
                m_descriptorSet = Core::DescriptorBuilder(m_resourceManager->GetContext())
-                   .addLayoutBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                   .addLayoutBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_RAYGEN_BIT_KHR) // Depth
+                   .addLayoutBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_RAYGEN_BIT_KHR) // Normal
+                   .addLayoutBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_RAYGEN_BIT_KHR)          // Shadow Mask
                    .build(Core::MAX_FRAMES_IN_FLIGHT);
                Core::RayTracingPipelineConfig rtConfig{};
                rtConfig.raygenShader = "shaders/RTShadow.rgen.spv";
-               rtConfig.missShaders = { "shaders/rt_shadows.rmiss.spv" };
-               rtConfig.hitShaders = { "shaders/rt_shadows.rchit.spv" };
+               rtConfig.missShaders = { "shaders/RTShadow.rmiss.spv" };
+               rtConfig.hitShaders = { "shaders/RTShadow.rchit.spv" };
                rtConfig.maxRayRecursionDepth = 1;
                rtConfig.descriptorLayouts = {
                    m_resourceManager->GetGlobalDescriptorSet().layout,
@@ -51,9 +53,14 @@ namespace Render::Pass
            void Execute(const RenderTypes::RenderContext& context, Render::Graph::RenderGraph& graph) override;
            bool HasSideEffect() override { return false; }
            Graph::RGHandle GetShadowMask() const { return m_shadowMask; }
+
        private:
+
            Core::ResourceManager* m_resourceManager = nullptr;
            Graph::RGHandle m_shadowMask;
+			Graph::RGHandle m_Depth;
+          Graph::RGHandle m_Normal;
+
            std::unique_ptr<Core::PipelineBuilder::Pipeline> m_pipeline;
            Core::DescriptorBuilder::DescriptorSet m_descriptorSet;
            std::unique_ptr<Core::RT::ShaderBindingTable> m_sbt;

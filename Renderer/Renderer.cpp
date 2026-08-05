@@ -14,6 +14,7 @@
 #include "Vulkan/Passes/ShadowPass.h"
 #include "Vulkan/Passes/ToneMappingPass.h"
 #include "Vulkan/Passes/PointShadowPass.h"
+#include "Vulkan/Passes/RTShadowPass.h"
 #include "Vulkan/Passes/SSAOPass.h"
 #include "Vulkan/Passes/TAAPass.h"
 
@@ -238,6 +239,8 @@ void Renderer::BuildRenderGraph(Core::Scene* scene)
         resourceManager.get(),
         scene);
 
+    auto& RTShadowPass = renderGraph->AddPass<Render::Pass::RTShadowPass>("RT Shadow Pass", resourceManager.get(), swapchain->extent);
+
     auto& lightingPass = renderGraph->AddPass<Render::Pass::DefferdLightingPass>("Deffered lighting pass",
         swapchain->extent,
         resourceManager.get(),
@@ -369,6 +372,7 @@ void Renderer::drawFrame(Core::Scene* scene, Core::Camera* camera, bool uiModeAc
     rendercontext.currentFrameIndex = currentFrame;
     rendercontext.debugViewMode = m_debugView;
     rendercontext.cameraSettings = m_CameraSettings;
+    rendercontext.m_enableRTShadows = m_RTShadowMode;
 
     renderGraph->Execute(rendercontext);
 
@@ -480,7 +484,7 @@ void Renderer::UpdateBuffers(uint32_t frameIDX, Core::Scene* scene, Core::Camera
     instances.reserve(scene->GetObjects().size());
     for (const auto& obj : scene->GetObjects()) {
         RenderTypes::InstanceData inst{};
-        inst.model = obj.transform;
+        inst.model = obj.localTransform;
         inst.materialID = meshIdx;
         instances.push_back(inst);
         meshIdx++;

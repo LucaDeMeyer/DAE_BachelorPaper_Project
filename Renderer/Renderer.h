@@ -78,6 +78,7 @@ public:
 
     /// @brief Retrieves a pointer to the active debug view mode (e.g., Albedo, Final Lighting).
     int* GetDebugViewMode() { return &m_debugView; }
+    int* GetRTShadowMode() { return &m_RTShadowMode; }
     /// @brief Retrieves a pointer to the physical camera settings (Aperture, Shutter Speed, ISO).
     RenderTypes::PhysicalCameraSettings* GetCameraSettings() { return &m_CameraSettings; }
     /// @brief Retrieves a pointer to the Render Graph rebuild flag.
@@ -122,6 +123,7 @@ private:
     std::unique_ptr<UI::UILayer> m_UiLayer;
 
     int m_debugView = 0;
+    int m_RTShadowMode = 1;
     bool m_graphNeedsRebuild = false;
     RenderTypes::PhysicalCameraSettings m_CameraSettings;
 
@@ -135,6 +137,8 @@ private:
     Core::TextureHandle m_taaHistory[2];
 
     uint32_t m_absoluteFrameCount = 0;
+
+   
 };
 
 #endif

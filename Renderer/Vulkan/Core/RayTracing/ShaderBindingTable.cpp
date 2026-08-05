@@ -4,6 +4,8 @@
 #include "Vulkan/Core/Buffer.h"
 #include "Vulkan/Core/ResourceTypes.h"
 
+
+
 namespace Core
 {
 	RT::ShaderBindingTable::ShaderBindingTable(GraphicsContext& context, ResourceManager& resManager, VkPipeline pipeline, uint32_t missCount, uint32_t hitCount)
@@ -50,40 +52,43 @@ namespace Core
      
         Core::BufferDesc sbtDesc{};
         sbtDesc.name = "ShaderBindingTable";
-        sbtDesc.size = sbtSize;
+        sbtDesc.size = sbtSize + baseAlignment;
         sbtDesc.usage = VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
         sbtDesc.vmaUsage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
         sbtDesc.vmaflags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
 
         m_bufferHandle = m_resManager.CreateBuffer(sbtDesc); 
             Core::BufferBuilder::Buffer* sbtBuf = m_resManager.GetBuffer(m_bufferHandle); 
-
-         
             VkBufferDeviceAddressInfo addressInfo{};
-        addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-        addressInfo.buffer = sbtBuf->buffer; 
-            VkDeviceAddress sbtAddress = vkGetBufferDeviceAddress(device, &addressInfo);
+            addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+            addressInfo.buffer = sbtBuf->buffer;
+            VkDeviceAddress rawSbtAddress = vkGetBufferDeviceAddress(device, &addressInfo);
 
-        uint8_t* pData = static_cast<uint8_t*>(sbtBuf->mapped);
-        uint32_t handleIdx = 0;
+            VkDeviceAddress sbtAddress = (rawSbtAddress + baseAlignment - 1) & ~(static_cast<VkDeviceAddress>(baseAlignment) - 1);
 
-   
+          
+            uint32_t alignmentOffset = static_cast<uint32_t>(sbtAddress - rawSbtAddress);
+
+          
+            uint8_t* pData = static_cast<uint8_t*>(sbtBuf->mapped) + alignmentOffset;
+            uint32_t handleIdx = 0;
+
         memcpy(pData, shaderHandleStorage.data() + handleIdx * handleSize, handleSize);
         handleIdx++;
 
         // Miss
         for (uint32_t i = 0; i < missCount; ++i) {
             memcpy(pData + raygenRegionSize + i * handleSizeAligned,
-                shaderHandleStorage.data() + handleIdx * handleSize,
-                handleSize);
+                shaderHandleStorage.data() + handleIdx * handleSize, // source uses raw handleSize!
+                handleSize); // copy only the true handle bytes
             handleIdx++;
         }
 
         // Hit
         for (uint32_t i = 0; i < hitCount; ++i) {
             memcpy(pData + raygenRegionSize + missRegionSize + i * handleSizeAligned,
-                shaderHandleStorage.data() + handleIdx * handleSize,
-                handleSize);
+                shaderHandleStorage.data() + handleIdx * handleSize, // source uses raw handleSize!
+                handleSize); // copy only the true handle bytes
             handleIdx++;
         }
 

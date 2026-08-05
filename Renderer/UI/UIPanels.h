@@ -84,9 +84,10 @@ namespace UI {
             Core::Scene* scene,
             bool* graphNeedsRebuild,
             RenderTypes::PhysicalCameraSettings* settings,
+            int* RTShadows,
             std::function<void(const std::string&)> onHdrLoad
         ) : m_show(show), m_scene(scene), m_graphNeedsRebuild(graphNeedsRebuild),
-            m_settings(settings), m_onHdrLoad(onHdrLoad) {
+            m_settings(settings), m_enableRTShadows(RTShadows),m_onHdrLoad(onHdrLoad) {
         }
 
         void Draw() override;
@@ -96,6 +97,7 @@ namespace UI {
         bool* m_graphNeedsRebuild;
         RenderTypes::PhysicalCameraSettings* m_settings;
         std::function<void(const std::string&)> m_onHdrLoad;
+        int* m_enableRTShadows;
     };
 
     /// @brief Visualizes Vulkan Memory Allocator (VMA) statistics and device memory usage.
@@ -137,5 +139,7 @@ namespace UI {
         VkDescriptorSet* m_viewedTextureID;
         Core::TextureDesc* m_viewedTextureDesc;
     };
+
+
 
 } // namespace UI

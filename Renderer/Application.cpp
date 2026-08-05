@@ -118,6 +118,7 @@ void Application::InitUI() {
         m_Scene.get(),
         m_renderer->GetGraphNeedsRebuildFlag(),
         m_renderer->GetCameraSettings(),
+        m_renderer->GetRTShadowMode(),
         onHdrLoad
     ));
 
@@ -140,6 +141,8 @@ void Application::InitUI() {
         m_renderer->GetViewedTextureID(),
         m_renderer->GetViewedTextureDesc()
     ));
+
+    
 }
 
 void Application::Run() {

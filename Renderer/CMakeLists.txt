@@ -190,6 +190,9 @@ file(GLOB_RECURSE SHADER_FILES
     "${SHADER_DIR}/*.frag"
     "${SHADER_DIR}/*.comp"
     "${SHADER_DIR}/*.geom"
+    "${SHADER_DIR}/*.rgen"
+    "${SHADER_DIR}/*.rchit"
+    "${SHADER_DIR}/*.rmiss"
 )
 set(SPIRV_DIR ${CMAKE_CURRENT_BINARY_DIR}/shaders)
 file(MAKE_DIRECTORY ${SPIRV_DIR})

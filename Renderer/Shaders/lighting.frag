@@ -50,6 +50,7 @@ layout(set = 0, binding = 3) readonly buffer LightData {
 
  layout(push_constant) uniform DebugPushConstBlock {
    int debugMode;
+   int useRTShadows;
 }debugPushConst;
 
 layout(set = 1, binding = 0) uniform sampler2D samplerAlbedo;
@@ -74,8 +75,16 @@ layout(set = 1, binding = 10) uniform CascadeUBO {
 
 layout(set = 1, binding = 11) uniform samplerCubeShadow pointShadowMaps[10];
 
-float CalculateShadow(vec3 worldPos, vec3 N, vec3 L)
+layout(set = 1, binding = 12) uniform sampler2D rtShadowMask;
+
+float CalculateShadow(vec3 worldPos, vec3 N, vec3 L,vec2 uv)
 {
+
+if (debugPushConst.useRTShadows == 1) {
+        // Just fetch the pre-calculated ray-traced mask!
+        return texture(rtShadowMask, uv).r;
+    }
+
     float depth = -(camera.view * vec4(worldPos, 1.0)).z;
     // Determine which shadow map slice to use based on camera distance
     uint cascadeIndex = 0;
@@ -246,7 +255,7 @@ void main()
     kD *= 1.0 - metallic;	  
 
     float NdotL = max(dot(N, L), 0.0);        
-    float shadow = CalculateShadow(worldPos, N, L);
+    float shadow = CalculateShadow(worldPos, N, L, inUV);
     Lo += (kD * albedo.rgb / PI + specular) * radiance * NdotL * shadow;
 
     for (uint i = 0; i < sceneLights.pointLightCount; i++) {

@@ -176,6 +176,14 @@ namespace UI {
                 *m_graphNeedsRebuild = true;
             }
         }
+        ImGui::Separator();
+        if (ImGui::CollapsingHeader("Shadow Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+
+            bool useRT = (*m_enableRTShadows == 1);
+            if (ImGui::Checkbox("Enable Ray Traced Shadows", &useRT)) {
+                *m_enableRTShadows = useRT ? 1 : 0;
+            }
+        }
         ImGui::End();
     }
     void MemoryStatsPanel::Draw() {
