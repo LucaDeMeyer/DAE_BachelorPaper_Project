@@ -79,6 +79,11 @@ void Render::Pass::DefferdLightingPass::Setup(Graph::RenderGraphBuilder& builder
         builder.AddDependency(m_rtPointShadowMask, Graph::AccessType::ShaderRead);
     }
 
+    m_rtAOMask = builder.FindResource("RT_AOMask");
+    if (m_rtAOMask.IsValid()) {
+        builder.AddDependency(m_rtAOMask, Graph::AccessType::ShaderRead);
+    }
+
 }
 
 void Render::Pass::DefferdLightingPass::Execute(const RenderTypes::RenderContext& context, Render::Graph::RenderGraph& graph)
@@ -90,7 +95,16 @@ void Render::Pass::DefferdLightingPass::Execute(const RenderTypes::RenderContext
     Core::ImageBuilder::Image* depthImage = context.resourceManager->GetTexture(graph.GetResource(m_Depth).physicalTexture);
     Core::ImageBuilder::Image* lightingOUT = context.resourceManager->GetTexture(graph.GetResource(m_LightingOut).physicalTexture);
     Core::ImageBuilder::Image* shadowImage = context.resourceManager->GetTexture(graph.GetResource(m_shadowMap).physicalTexture);
+
+
     Core::ImageBuilder::Image* ssaoImage = context.resourceManager->GetTexture(graph.GetResource(m_ssaoMap).physicalTexture);
+
+    VkImageView activeAOView = ssaoImage->view;
+
+    if (m_rtAOMask.IsValid() && context.m_enableRTShadows) {
+        auto* imgRTAO = context.resourceManager->GetTexture(graph.GetResource(m_rtAOMask).physicalTexture);
+        activeAOView = imgRTAO->view;
+    }
 
     Core::ImageBuilder::Image* envImage = context.resourceManager->GetTexture(m_envTex);
     Core::ImageBuilder::Image* irrImage = context.resourceManager->GetTexture(m_irrTex);
@@ -134,7 +148,7 @@ void Render::Pass::DefferdLightingPass::Execute(const RenderTypes::RenderContext
 		.writeImage(6,prefilterimage->view,context.resourceManager->GetLinearSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
         .writeImage(7, brdfimage->view, context.resourceManager->GetLinearSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
         .writeImage(8, shadowImage->view,context.resourceManager->GetShadowSampler(),VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-        .writeImage(9,ssaoImage->view,context.resourceManager->GetPointSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+        .writeImage(9, activeAOView,context.resourceManager->GetPointSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
         .writeBuffer(10,context.resourceManager->GetBuffer(context.resourceManager->GetCascadeUBOs()[context.resourceManager->GetFrameIndex()])->buffer,0, sizeof(RenderTypes::CascadeUBO),VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
         .writeImage(13, rtPointShadowView, m_resourceManager->GetPointSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
         .writeImage(12, rtShadowView, m_resourceManager->GetPointSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
