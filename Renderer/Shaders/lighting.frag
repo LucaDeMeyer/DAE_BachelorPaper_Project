@@ -61,8 +61,8 @@ layout(set = 1, binding = 3) uniform sampler2D samplerDepth;
 layout(set = 1, binding = 4) uniform samplerCube environmentMap;
 layout(set = 1, binding = 5) uniform samplerCube irradianceMap;
 
-layout(set = 1, binding = 6) uniform samplerCube prefilterdMap;
-layout(set = 1, binding = 7) uniform sampler2D  BRDF_LUT;
+layout(set = 1, binding = 6) uniform samplerCube prefilterMap; 
+layout(set = 1, binding = 7) uniform sampler2D brdfLUT;
 
 layout(set = 1, binding = 8) uniform sampler2DArrayShadow shadowMap;
 
@@ -78,6 +78,8 @@ layout(set = 1, binding = 11) uniform samplerCubeShadow pointShadowMaps[10];
 layout(set = 1, binding = 12) uniform sampler2D rtShadowMask;
 
 layout(set = 1, binding =13) uniform sampler2DArray rtPointShadowMask;
+
+layout(set = 1, binding = 14) uniform sampler2D ssrMask;
  
 float CalculateShadow(vec3 worldPos, vec3 N, vec3 L,vec2 uv)
 {
@@ -309,27 +311,26 @@ void main()
 }
 
 
-
     vec3 kS_IBL = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
     vec3 kD_IBL = (1.0 - kS_IBL) * (1.0 - metallic);
 
     vec3 irradiance  = texture(irradianceMap, N).rgb;
     vec3 diffuseIBL  = irradiance * albedo.rgb;
 
-    vec3  R            = reflect(-V, N);
+    vec3 R = reflect(-V, N);
     float MAX_REFLECTION_LOD = 4.0; 
-    // Solving the full rendering equation for ambient lighting in real-time is impossible.
-    // We use Epic Games' Split-Sum Approximation to split the equation into two parts:
-    // 1. The Prefiltered Map (Pre-calculated specular light blurred at different roughness levels)
-    // 2. The BRDF LUT (A pre-calculated 2D texture baking the Geometry and Fresnel responses)
-    // By multiplying these two pre-computed textures together, we get a highly accurate 
-    // real-time approximation of complex environmental reflections.
-    vec3  prefilteredColor   = textureLod(prefilterdMap, R, roughness * MAX_REFLECTION_LOD).rgb;
-    vec2  brdf                = texture(BRDF_LUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
-    vec3  specularIBL         = prefilteredColor * (kS_IBL * brdf.x + brdf.y);
 
-   vec3 ambient = (kD_IBL * (diffuseIBL * occlusion)) + specularIBL;
-    vec3 color   = Lo + ambient;
+    vec3 prefilteredColor = textureLod(prefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;
+    vec4 ssrResult = texture(ssrMask, inUV);
+    vec3 finalReflectionColor = mix(prefilteredColor, ssrResult.rgb, ssrResult.a);
+
+    vec2 envBRDF = texture(brdfLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
+    
+    vec3 specularIBL = finalReflectionColor * (kS_IBL * envBRDF.x + envBRDF.y);
+
+    vec3 ambient = (kD_IBL * diffuseIBL + specularIBL) * occlusion;
+
+    vec3 color = Lo + ambient;
   
-   outColor = vec4(color, 1.0);
+    outColor = vec4(color, 1.0);
 }

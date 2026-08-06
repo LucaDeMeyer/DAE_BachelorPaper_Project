@@ -23,7 +23,6 @@ layout(set = 2, binding = 0) uniform sampler2D samplerDepth;
 layout(set = 2, binding = 1) uniform sampler2D samplerNormal;
 layout(set = 2, binding = 2, r8) uniform writeonly image2D outAOMask; 
 
-// We need a changing seed every frame so your TAA pass can smooth the noise!
 layout(push_constant) uniform PushConsts {
     uint frameCount;
 } pc;
@@ -73,7 +72,7 @@ void main()
     vec3 tangent = normalize(cross(up, normal));
     vec3 bitangent = cross(normal, tangent);
     vec3 worldDir = tangent * localDir.x + bitangent * localDir.y + normal * localDir.z;
-    // -------------------------------------------
+
 
     // Bias ray to prevent self-intersection acne
     vec3 origin = worldPos + (normal * 0.05);

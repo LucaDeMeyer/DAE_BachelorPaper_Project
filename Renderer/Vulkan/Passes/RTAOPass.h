@@ -25,13 +25,10 @@ namespace Render::Pass
 
             Core::RayTracingPipelineConfig rtConfig{};
             rtConfig.raygenShader = "shaders/RTAO.rgen.spv";
-            rtConfig.missShaders = { "shaders/RTShadow.rmiss.spv" }; // Reuse shadow miss!
-            rtConfig.hitShaders = { "shaders/RTShadow.rchit.spv" };  // Reuse shadow hit!
+            rtConfig.missShaders = { "shaders/RTShadow.rmiss.spv" };
+            rtConfig.hitShaders = { "shaders/RTShadow.rchit.spv" };  
             rtConfig.maxRayRecursionDepth = 1;
-
-            // Add push constant for the random seed
             rtConfig.pushConstants = { {VK_SHADER_STAGE_RAYGEN_BIT_KHR, 0, sizeof(uint32_t)} };
-
             rtConfig.descriptorLayouts = {
                 m_resourceManager->GetGlobalDescriptorSet().layout,
                 m_resourceManager->GetRTDescriptorSet().layout,

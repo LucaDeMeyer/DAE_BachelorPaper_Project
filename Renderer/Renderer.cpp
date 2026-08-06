@@ -18,6 +18,7 @@
 #include "Vulkan/Passes/RTPointShadowPass.h"
 #include "Vulkan/Passes/RTShadowPass.h"
 #include "Vulkan/Passes/SSAOPass.h"
+#include "Vulkan/Passes/SSRPass.h"
 #include "Vulkan/Passes/TAAPass.h"
 
 /*TODO: 
@@ -248,6 +249,17 @@ void Renderer::BuildRenderGraph(Core::Scene* scene)
         auto& RTAOPass = renderGraph->AddPass<Render::Pass::RTAOPass>("RT AO Pass",resourceManager.get(), swapchain->extent );
 
     }
+
+    auto& ssrPass = renderGraph->AddPass<Render::Pass::SSRPass>(
+        "SSR Pass",
+        swapchain->extent,
+        resourceManager.get(),
+        rgTaaHistory0,
+        rgTaaHistory1,
+        m_taaHistory[0],
+        m_taaHistory[1]
+    );
+
     auto& lightingPass = renderGraph->AddPass<Render::Pass::DefferdLightingPass>("Deffered lighting pass",
         swapchain->extent,
         resourceManager.get(),
