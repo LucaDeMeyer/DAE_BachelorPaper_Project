@@ -1,0 +1,87 @@
+#version 460
+#extension GL_EXT_ray_tracing : require
+
+#include "Common/LightingHelpers.glsl"
+#include "Common/CommonHelpers.glsl"
+
+layout(location = 0) rayPayloadEXT vec4 hitValue;
+
+layout(set = 0, binding = 0) uniform CameraUBO {
+    mat4 view;
+    mat4 proj;
+    mat4 invView;
+    mat4 invProj;
+    mat4 invViewProj;
+    mat4 invProjUnjittered;
+    mat4 viewProj;
+    mat4 prevViewProj;
+} camera;
+
+layout(set = 1, binding = 0) uniform accelerationStructureEXT topLevelAS;
+
+layout(set = 2, binding = 0) uniform sampler2D samplerDepth;
+layout(set = 2, binding = 1) uniform sampler2D samplerNormal;
+layout(set = 2, binding = 2) uniform sampler2D samplerMaterial;
+layout(set = 2, binding = 3, rgba16f) uniform writeonly image2D outRTR;
+
+void main() 
+{
+    ivec2 pixelCoord = ivec2(gl_LaunchIDEXT.xy);
+    vec2 resolution = vec2(gl_LaunchSizeEXT.xy);
+    vec2 uv = (vec2(pixelCoord) + 0.5) / resolution;
+
+    float depth = texture(samplerDepth, uv).r;
+
+    // Skip the sky
+    if (depth >= 0.9999) {
+        imageStore(outRTR, pixelCoord, vec4(0.0));
+        return;
+    }
+
+    vec4 material = texture(samplerMaterial, uv);
+    float roughness = material.g;
+
+    // Early out: If the surface is too rough, skip tracing a ray to save immense GPU time!
+    if (roughness > 0.4) {
+        imageStore(outRTR, pixelCoord, vec4(0.0));
+        return;
+    }
+
+    vec3 worldPos = reconstructWorldPos(depth, uv, camera.invViewProj);
+    vec3 normal = normalize(texture(samplerNormal, uv).xyz);
+    vec3 viewPos = (camera.invView * vec4(0, 0, 0, 1)).xyz;
+    vec3 viewDir = normalize(worldPos - viewPos);
+
+    // Calculate Reflection Ray
+    vec3 reflectDir = normalize(reflect(viewDir, normal));
+
+    // Bias ray to prevent self-intersection (acne)
+    vec3 origin = worldPos + (normal * 0.05);
+
+    uint rayFlags = gl_RayFlagsOpaqueEXT; // We want to run the Closest Hit shader!
+    float tMin = 0.01;
+    float tMax = 1000.0; // Shoot out into the horizon
+
+    // Default to a 0.0 alpha, which means "Miss"
+    hitValue = vec4(0.0);
+
+    traceRayEXT(
+        topLevelAS,    
+        rayFlags,      
+        0xFF,          
+        0,             // sbtRecordOffset
+        0,             // sbtRecordStride
+        0,             // missIndex
+        origin,        
+        tMin,          
+        reflectDir,      
+        tMax,          
+        0              // payloadLocation
+    );
+
+    // Fade out based on roughness, just like we did with SSR
+    float roughnessFade = 1.0 - smoothstep(0.2, 0.4, roughness);
+    hitValue.a *= roughnessFade;
+
+    imageStore(outRTR, pixelCoord, hitValue);
+}

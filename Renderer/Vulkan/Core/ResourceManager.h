@@ -84,6 +84,7 @@ namespace Core
         /// @param outFirstIndex Returns the starting index offset for this specific mesh's vkCmdDrawIndexed call.
         /// @param outVertexOffset Returns the starting vertex offset to shift the indices correctly.
         void AppendMeshToGlobalBuffer(GraphicsContext& ctx, const std::vector<RenderTypes::Vertex>& vertices, const std::vector<uint32_t>& indices, uint32_t& outFirstIndex, int32_t& outVertexOffset);
+        uint32_t AppendMaterialToGlobalBuffer(GraphicsContext& ctx, RenderTypes::GPUMaterial mat);
 
         VkBuffer GetGlobalVertexBuffer();
         VkBuffer GetGlobalIndexBuffer();
@@ -132,6 +133,11 @@ namespace Core
         void SetGlobalTLAS(VkAccelerationStructureKHR tlas) { m_globalTLAS = tlas; }
         VkAccelerationStructureKHR GetGlobalTLAS() const { return m_globalTLAS; }
 
+
+        BufferHandle m_globalMaterialBuffer;
+        BufferHandle m_rtInstanceBuffer;
+
+        std::vector<RenderTypes::GPUMaterial> m_gpuMaterials;
     private:
         GraphicsContext& context;
 
@@ -155,6 +161,7 @@ namespace Core
 
         BufferHandle m_globalVertexBuffer;
         BufferHandle m_globalIndexBuffer;
+    
         BufferHandle m_exposureBuffer;
 
         uint32_t m_globalVertexCapacity = 0;
@@ -179,6 +186,7 @@ namespace Core
         float m_DeltaTime = 0;
 
         VkAccelerationStructureKHR m_globalTLAS = VK_NULL_HANDLE;
+
 
         /// @brief Hashes resource properties into a string key to find matching free resources in the pool.
         std::string GenerateTextureKey(const TextureDesc& desc);

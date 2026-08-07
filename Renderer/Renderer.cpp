@@ -16,6 +16,7 @@
 #include "Vulkan/Passes/PointShadowPass.h"
 #include "Vulkan/Passes/RTAOPass.h"
 #include "Vulkan/Passes/RTPointShadowPass.h"
+#include "Vulkan/Passes/RTRPass.h"
 #include "Vulkan/Passes/RTShadowPass.h"
 #include "Vulkan/Passes/SSAOPass.h"
 #include "Vulkan/Passes/SSRPass.h"
@@ -108,11 +109,55 @@ void Renderer::initVulkan() {
     m_iblTextures = m_IBLBaker->BakeEnvironment("textures/circus_arena_4k.hdr");
 
     resourceManager->InitGlobalBuffers();
-    resourceManager->InitGlobalDescriptorSet();
+    //resourceManager->InitGlobalDescriptorSet();
 }
 
 void Renderer::SetupScene(Core::Scene* scene, const std::vector<Core::Mesh>& meshes) {
+   
+    auto* allocator = context->getAllocator();
+
+    if (!resourceManager->m_gpuMaterials.empty()) {
+        Core::BufferDesc matDesc{};
+        matDesc.name = "Global_Material_SSBO";
+        matDesc.size = resourceManager->m_gpuMaterials.size() * sizeof(RenderTypes::GPUMaterial);
+        matDesc.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        matDesc.vmaUsage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
+        matDesc.vmaflags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+
+        resourceManager->m_globalMaterialBuffer = resourceManager->CreateBuffer(matDesc);
+
+        Core::BufferBuilder::Buffer* matBuf = resourceManager->GetBuffer(resourceManager->m_globalMaterialBuffer);
+        void* data = allocator->map<void>(matBuf->allocation);
+        memcpy(data, resourceManager->m_gpuMaterials.data(), matDesc.size);
+        allocator->unmap(matBuf->allocation);
+    }
+    std::vector<RenderTypes::InstanceData> rtInstances;
+    for (size_t i = 0; i < scene->GetObjects().size(); i++) {
+        RenderTypes::InstanceData instData{};
+        // Link to the material index we saved during Mesh::UpLoadToGPU
+        instData.materialID = scene->GetObjects()[i].mesh->materialIndex;
+        rtInstances.push_back(instData);
+    }
+    if (!rtInstances.empty()) {
+        Core::BufferDesc instDesc{};
+        instDesc.name = "RT_Instance_SSBO";
+        instDesc.size = rtInstances.size() * sizeof(RenderTypes::InstanceData);
+        instDesc.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        instDesc.vmaUsage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
+        instDesc.vmaflags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+
+        resourceManager->m_rtInstanceBuffer = resourceManager->CreateBuffer(instDesc);
+
+        Core::BufferBuilder::Buffer* instBuf = resourceManager->GetBuffer(resourceManager->m_rtInstanceBuffer);
+        void* data = allocator->map<void>(instBuf->allocation);
+        memcpy(data, rtInstances.data(), instDesc.size);
+        allocator->unmap(instBuf->allocation);
+    }
+
+    resourceManager->InitGlobalDescriptorSet();
+
     RegisterBindlessTextures(meshes);
+
 
     VkCommandBuffer cmd = Utils::beginSingleTimeCommands(context->getDevice(), context->getCommandPool());
     m_accelerationStructure = Core::RT::RTAccelerationStructureBuilder(*context, *resourceManager)
@@ -247,7 +292,7 @@ void Renderer::BuildRenderGraph(Core::Scene* scene)
         auto& RTShadowPass = renderGraph->AddPass<Render::Pass::RTShadowPass>("RT Shadow Pass", resourceManager.get(), swapchain->extent);
         auto& RTPointShadowPass = renderGraph->AddPass<Render::Pass::RTPointShadowPass>("RT Point Shadow Pass", resourceManager.get(), swapchain->extent);
         auto& RTAOPass = renderGraph->AddPass<Render::Pass::RTAOPass>("RT AO Pass",resourceManager.get(), swapchain->extent );
-
+        auto& rtrPass = renderGraph->AddPass<Render::Pass::RTRPass>("RTR Pass", resourceManager.get(), swapchain->extent);
     }
 
     auto& ssrPass = renderGraph->AddPass<Render::Pass::SSRPass>(

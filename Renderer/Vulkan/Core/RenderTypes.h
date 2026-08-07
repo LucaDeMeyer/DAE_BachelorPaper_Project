@@ -168,5 +168,18 @@ namespace RenderTypes
         int useRTShadows;
     };
 
+
+    struct GPUMaterial {
+        glm::vec4 baseColor;
+
+        int albedoTexIdx;
+        int normalTexIdx;
+        int metallicRoughnessTexIdx;
+        float metallic;
+
+        float roughness;
+        float padding[3];
+    };
+
 }
 #endif

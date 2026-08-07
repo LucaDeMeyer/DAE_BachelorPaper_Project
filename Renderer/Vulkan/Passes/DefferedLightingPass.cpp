@@ -90,6 +90,12 @@ void Render::Pass::DefferdLightingPass::Setup(Graph::RenderGraphBuilder& builder
         builder.AddDependency(m_rtAOMask, Graph::AccessType::ShaderRead);
     }
 
+    m_rtReflectionMask = builder.FindResource("RT_ReflectionOutput");
+    if (m_rtReflectionMask.IsValid())
+    {
+        builder.AddDependency(m_rtReflectionMask, Graph::AccessType::ShaderRead);
+    }
+
 }
 
 void Render::Pass::DefferdLightingPass::Execute(const RenderTypes::RenderContext& context, Render::Graph::RenderGraph& graph)
@@ -116,6 +122,11 @@ void Render::Pass::DefferdLightingPass::Execute(const RenderTypes::RenderContext
     if (m_ssrOut.IsValid()) {
         auto* imgSSR = context.resourceManager->GetTexture(graph.GetResource(m_ssrOut).physicalTexture);
         ssrView = imgSSR->view;
+    }
+    VkImageView activeReflectionView = ssrView;
+    if (m_rtReflectionMask.IsValid() && context.m_enableRTShadows) {
+        auto* imgRTR = context.resourceManager->GetTexture(graph.GetResource(m_rtReflectionMask).physicalTexture);
+        activeReflectionView = imgRTR->view;
     }
 
     Core::ImageBuilder::Image* envImage = context.resourceManager->GetTexture(m_envTex);
@@ -144,7 +155,7 @@ void Render::Pass::DefferdLightingPass::Execute(const RenderTypes::RenderContext
         rtShadowView = imgRTShadow->view;
     }
 
-    VkImageView rtPointShadowView = shadowImage->view;
+    VkImageView rtPointShadowView = shadowImage->view; // this needs a 2D array, reusing ssao gives us validation errors
     if (m_rtPointShadowMask.IsValid()) {
         auto* imgRTPointShadow = context.resourceManager->GetTexture(graph.GetResource(m_rtPointShadowMask).physicalTexture);
         rtPointShadowView = imgRTPointShadow->view;

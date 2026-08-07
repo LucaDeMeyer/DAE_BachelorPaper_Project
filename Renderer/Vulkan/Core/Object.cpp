@@ -180,6 +180,16 @@ Core::Mesh Core::MeshLoader::ProcessAssimpMesh(
         indexCount = static_cast<uint32_t>(indices.size());
         resManager.AppendMeshToGlobalBuffer(ctx,vertices,indices,this->firstIndex,  this->vertexOffset );
 
+        RenderTypes::GPUMaterial gpuMat{};
+        gpuMat.baseColor = glm::vec4(material.baseColor, 1.0f);
+        gpuMat.albedoTexIdx = material.albedoMap.IsValid() ? material.albedoMap.id : -1;
+        gpuMat.normalTexIdx = material.normalMap.IsValid() ? material.normalMap.id : -1;
+        gpuMat.metallicRoughnessTexIdx = material.metallicRoughnessMap.IsValid() ? material.metallicRoughnessMap.id : -1;
+        gpuMat.metallic = material.metallic;
+        gpuMat.roughness = material.roughness;
+
+        this->materialIndex = resManager.AppendMaterialToGlobalBuffer(ctx, gpuMat);
+
         vertices.clear();
         vertices.shrink_to_fit();
         indices.clear();

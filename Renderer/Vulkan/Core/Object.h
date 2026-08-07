@@ -31,6 +31,7 @@ namespace Core
         float metallic = 0.0f;
         float roughness = 0.5f;
     };
+
     /// @brief The raw geometry data uploaded to the GPU Mega-Buffers.
     struct Mesh {
         uint32_t firstIndex = 0;      
@@ -38,6 +39,8 @@ namespace Core
 
         uint32_t vertexCount = 0;
         uint32_t indexCount = 0;
+
+        uint32_t materialIndex = 0;
 
         std::vector<RenderTypes::Vertex> vertices;
         std::vector<uint32_t> indices;

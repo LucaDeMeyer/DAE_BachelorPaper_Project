@@ -33,7 +33,8 @@ Vulkan/Passes/RTShadowPass.cpp
 Vulkan/Passes/TAAPass.cpp
 Vulkan/Passes/SSRPass.cpp
 Vulkan/Passes/RTPointShadowPass.cpp
-Vulkan/Passes/RTAOPass.cpp)
+Vulkan/Passes/RTAOPass.cpp
+Vulkan/Passes/RTRPass.cpp)
 
 
 set(HEADER_FILES
@@ -75,7 +76,8 @@ Vulkan/Passes/RTShadowPass.h
 Vulkan/Passes/TAAPass.h
 Vulkan/Passes/SSRPass.h
 Vulkan/Passes/RTPointShadowPass.h
-Vulkan/Passes/RTAOPass.h)
+Vulkan/Passes/RTAOPass.h
+Vulkan/Passes/RTRPass.h)
 
 
 

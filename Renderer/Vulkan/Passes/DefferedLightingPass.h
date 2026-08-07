@@ -92,10 +92,11 @@ namespace Render::Pass
 		Render::Graph::RGHandle m_shadowMap;
 		Render::Graph::RGHandle m_ssaoMap;
 		Graph::RGHandle m_ssrOut;
-
+	
 		Graph::RGHandle m_rtShadowMask;
 		Graph::RGHandle m_rtPointShadowMask;
 		Graph::RGHandle m_rtAOMask;
+		Graph::RGHandle m_rtReflectionMask;
 
 		std::vector<Render::Graph::RGHandle> m_pointShadowMaps;
 

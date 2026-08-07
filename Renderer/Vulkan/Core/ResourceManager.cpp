@@ -321,14 +321,14 @@ void Core::ResourceManager::InitGlobalGeometryBuffers(GraphicsContext& ctx, uint
     BufferDesc vDesc{};
     vDesc.name = "GlobalVertexSSBO";
     vDesc.size = maxVertices * sizeof(RenderTypes::Vertex);
-    vDesc.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;;
+    vDesc.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR| VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
     vDesc.vmaUsage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
     m_globalVertexBuffer = CreateBuffer(vDesc);
 
     BufferDesc iDesc{};
     iDesc.name = "GlobalIndexBuffer";
     iDesc.size = maxIndices * sizeof(uint32_t);
-    iDesc.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;;
+    iDesc.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
     iDesc.vmaUsage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
     m_globalIndexBuffer = CreateBuffer(iDesc);
 }
@@ -387,6 +387,13 @@ void Core::ResourceManager::AppendMeshToGlobalBuffer(
     m_currentVertexCount += static_cast<uint32_t>(vertices.size());
     m_currentIndexCount += static_cast<uint32_t>(indices.size());
 }
+
+uint32_t Core::ResourceManager::AppendMaterialToGlobalBuffer(GraphicsContext& ctx, RenderTypes::GPUMaterial mat)
+{
+    m_gpuMaterials.push_back(mat);
+    return static_cast<uint32_t>(m_gpuMaterials.size() - 1);
+}
+
 
 VkBuffer Core::ResourceManager::GetGlobalVertexBuffer()  {
     return GetBuffer(m_globalVertexBuffer)->buffer;
@@ -506,11 +513,13 @@ void Core::ResourceManager::InitGlobalDescriptorSet()
         .addLayoutBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
             VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR)
         .addLayoutBinding(3,VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR)
         .addLayoutBinding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR,
+            VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR,
             MAX_BINDLESS_TEXTURES,
             VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT)
+        .addLayoutBinding(11, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR)
+        .addLayoutBinding(12, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR)
         .build(MAX_FRAMES_IN_FLIGHT);
 
     VkBuffer globalVertexBuffer = GetGlobalVertexBuffer();
@@ -522,6 +531,8 @@ void Core::ResourceManager::InitGlobalDescriptorSet()
         VkBuffer uboBuffer = GetBuffer(m_cameraUBOs[i])->buffer;
         VkBuffer instanceBuffer = GetBuffer(m_instanceSSBOs[i])->buffer;
         VkBuffer lightBuffer = GetBuffer(m_LightSSBOs[i])->buffer;
+        VkBuffer matBuffer = GetBuffer(m_globalMaterialBuffer)->buffer;
+        VkBuffer rtInstBuffer = GetBuffer(m_rtInstanceBuffer)->buffer;
 
         writer.writeBuffer(0, uboBuffer, 0, sizeof(RenderTypes::CameraUBO),
             VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
@@ -530,6 +541,8 @@ void Core::ResourceManager::InitGlobalDescriptorSet()
             .writeBuffer(2, instanceBuffer, 0, VK_WHOLE_SIZE,
                 VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
             .writeBuffer(3, lightBuffer, 0, VK_WHOLE_SIZE, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
+            .writeBuffer(11, matBuffer, 0, VK_WHOLE_SIZE, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
+            .writeBuffer(12, rtInstBuffer, 0, VK_WHOLE_SIZE, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
             .overwrite(m_globalDescriptorSet.sets[i], context.getDevice());
     }
 }
