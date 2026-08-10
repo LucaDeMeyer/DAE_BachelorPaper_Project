@@ -212,6 +212,10 @@ void main()
         return;
     }
 
+    else if (debugPushConst.debugMode == 6) {
+    outColor = texture(ssrMask, inUV);
+    return;
+}
 
   if (depth >= 1.0) {
     vec2 ndc = inUV * 2.0 - 1.0;
@@ -321,11 +325,14 @@ void main()
     float MAX_REFLECTION_LOD = 4.0; 
 
     vec3 prefilteredColor = textureLod(prefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;
-    vec4 ssrResult = texture(ssrMask, inUV);
-    vec3 finalReflectionColor = mix(prefilteredColor, ssrResult.rgb, ssrResult.a);
+    
+    vec4 rtrResult = texture(ssrMask, inUV); 
+
+    float rtWeight = 1.0 - smoothstep(0.2, 0.4, roughness);
+
+    vec3 finalReflectionColor = mix(prefilteredColor, rtrResult.rgb, rtWeight);
 
     vec2 envBRDF = texture(brdfLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
-    
     vec3 specularIBL = finalReflectionColor * (kS_IBL * envBRDF.x + envBRDF.y);
 
     vec3 ambient = (kD_IBL * diffuseIBL + specularIBL) * occlusion;

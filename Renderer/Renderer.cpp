@@ -20,6 +20,8 @@
 #include "Vulkan/Passes/RTShadowPass.h"
 #include "Vulkan/Passes/SSAOPass.h"
 #include "Vulkan/Passes/SSRPass.h"
+#include "Vulkan/Passes/SVGFSpatialPass.h"
+#include "Vulkan/Passes/SVGFTemporalPass.h"
 #include "Vulkan/Passes/TAAPass.h"
 
 /*TODO: 
@@ -136,6 +138,8 @@ void Renderer::SetupScene(Core::Scene* scene, const std::vector<Core::Mesh>& mes
         RenderTypes::InstanceData instData{};
         // Link to the material index we saved during Mesh::UpLoadToGPU
         instData.materialID = scene->GetObjects()[i].mesh->materialIndex;
+        instData.firstIndex = scene->GetObjects()[i].mesh->firstIndex;
+        instData.vertexOffset = scene->GetObjects()[i].mesh->vertexOffset;
         rtInstances.push_back(instData);
     }
     if (!rtInstances.empty()) {
@@ -188,6 +192,29 @@ void Renderer::SetupScene(Core::Scene* scene, const std::vector<Core::Mesh>& mes
     m_taaHistory[0] = resourceManager->CreateTexture(taaDesc);
     m_taaHistory[1] = resourceManager->CreateTexture(taaDesc);
 
+    for (int i = 0; i < 2; i++) {
+        if (m_svgfHistory[i].IsValid()) {
+            resourceManager->DestroyTexture(m_svgfHistory[i]);
+        }
+    }
+
+    Core::TextureDesc svgfDesc = taaDesc; 
+    svgfDesc.name = "SVGF_History";
+    m_svgfHistory[0] = resourceManager->CreateTexture(svgfDesc);
+    m_svgfHistory[1] = resourceManager->CreateTexture(svgfDesc);
+
+
+    for (int i = 0; i < 2; i++) {
+        if (m_rtaoHistory[i].IsValid()) {
+            resourceManager->DestroyTexture(m_rtaoHistory[i]);
+        }
+    }
+
+    Core::TextureDesc rtaoDesc = taaDesc;
+    rtaoDesc.name = "RTAO_History";
+    m_rtaoHistory[0] = resourceManager->CreateTexture(rtaoDesc);
+    m_rtaoHistory[1] = resourceManager->CreateTexture(rtaoDesc);
+
     BuildRenderGraph(scene);
     renderGraph->InitProfiling(context->getDevice(), context->getPhysicalDevice(), Core::MAX_FRAMES_IN_FLIGHT);
 }
@@ -224,6 +251,28 @@ void Renderer::BuildRenderGraph(Core::Scene* scene)
     );
     Render::Graph::RGHandle rgTaaHistory1 = renderGraph->RegisterImportedImage(
         taaImg1->image, taaImg1->format, exttaa01, VK_IMAGE_LAYOUT_UNDEFINED
+    );
+
+    Core::ImageBuilder::Image* svgfImg0 = resourceManager->GetTexture(m_svgfHistory[0]);
+    Core::ImageBuilder::Image* svgfImg1 = resourceManager->GetTexture(m_svgfHistory[1]);
+    VkExtent3D extSvgf = { svgfImg0->extent.width, svgfImg0->extent.height, 1 };
+
+    Render::Graph::RGHandle rgSvgfHistory0 = renderGraph->RegisterImportedImage(
+        svgfImg0->image, svgfImg0->format, extSvgf, VK_IMAGE_LAYOUT_UNDEFINED
+    );
+    Render::Graph::RGHandle rgSvgfHistory1 = renderGraph->RegisterImportedImage(
+        svgfImg1->image, svgfImg1->format, extSvgf, VK_IMAGE_LAYOUT_UNDEFINED
+    );
+
+    Core::ImageBuilder::Image* rtaoImg0 = resourceManager->GetTexture(m_rtaoHistory[0]);
+    Core::ImageBuilder::Image* rtaoImg1 = resourceManager->GetTexture(m_rtaoHistory[1]);
+    VkExtent3D extRtao = { rtaoImg0->extent.width, rtaoImg0->extent.height, 1 };
+
+    Render::Graph::RGHandle rgRtaoHistory0 = renderGraph->RegisterImportedImage(
+        rtaoImg0->image, rtaoImg0->format, extRtao, VK_IMAGE_LAYOUT_UNDEFINED
+    );
+    Render::Graph::RGHandle rgRtaoHistory1 = renderGraph->RegisterImportedImage(
+        rtaoImg1->image, rtaoImg1->format, extRtao, VK_IMAGE_LAYOUT_UNDEFINED
     );
 
 
@@ -280,20 +329,54 @@ void Renderer::BuildRenderGraph(Core::Scene* scene)
         resourceManager.get(),
         scene
     );
-
+ 
     auto& ssaoPass = renderGraph->AddPass<Render::Pass::SSAOPass>(
         "SSAO Pass",
         swapchain->extent,
         resourceManager.get(),
         scene);
 
-    if (m_RTShadowMode == 1)
-    {
+
+
         auto& RTShadowPass = renderGraph->AddPass<Render::Pass::RTShadowPass>("RT Shadow Pass", resourceManager.get(), swapchain->extent);
         auto& RTPointShadowPass = renderGraph->AddPass<Render::Pass::RTPointShadowPass>("RT Point Shadow Pass", resourceManager.get(), swapchain->extent);
-        auto& RTAOPass = renderGraph->AddPass<Render::Pass::RTAOPass>("RT AO Pass",resourceManager.get(), swapchain->extent );
+       
         auto& rtrPass = renderGraph->AddPass<Render::Pass::RTRPass>("RTR Pass", resourceManager.get(), swapchain->extent);
-    }
+
+        auto& rtrTemporal = renderGraph->AddPass<Render::Pass::SVGFTemporalPass>(
+            "SVGF Temporal RTR", resourceManager.get(), swapchain->extent,
+            rgSvgfHistory0, rgSvgfHistory1, m_svgfHistory[0], m_svgfHistory[1],
+            "RT_ReflectionOutput", "SVGF_RTR_Temporal_Out", 0 // isRTAO = 0
+        );
+
+        auto& rtrSpatial1 = renderGraph->AddPass<Render::Pass::SVGFSpatialPass>(
+            "SVGF Spatial RTR 1", resourceManager.get(), swapchain->extent,
+            "SVGF_RTR_Temporal_Out", "SVGF_RTR_Spatial_Out_1", 1, 0 // Step 1, isRTAO 0
+        );
+
+        auto& rtrSpatial2 = renderGraph->AddPass<Render::Pass::SVGFSpatialPass>(
+            "SVGF Spatial RTR 2", resourceManager.get(), swapchain->extent,
+            "SVGF_RTR_Spatial_Out_1", "SVGF_RTR_Final", 2, 0 // Step 2, isRTAO 0
+        );
+
+        auto& RTAOPass = renderGraph->AddPass<Render::Pass::RTAOPass>("RT AO Pass", resourceManager.get(), swapchain->extent);
+
+        auto& rtaoTemporal = renderGraph->AddPass<Render::Pass::SVGFTemporalPass>(
+            "SVGF Temporal RTAO", resourceManager.get(), swapchain->extent,
+            rgRtaoHistory0, rgRtaoHistory1, m_rtaoHistory[0], m_rtaoHistory[1],
+            "RT_AOMask", "SVGF_RTAO_Temporal_Out", 1 // isRTAO = 1
+        );
+
+        auto& rtaoSpatial1 = renderGraph->AddPass<Render::Pass::SVGFSpatialPass>(
+            "SVGF Spatial RTAO 1", resourceManager.get(), swapchain->extent,
+            "SVGF_RTAO_Temporal_Out", "SVGF_RTAO_Spatial_Out_1", 1, 1 // Step 1, isRTAO 1
+        );
+
+        auto& rtaoSpatial2 = renderGraph->AddPass<Render::Pass::SVGFSpatialPass>(
+            "SVGF Spatial RTAO 2", resourceManager.get(), swapchain->extent,
+            "SVGF_RTAO_Spatial_Out_1", "SVGF_RTAO_Final", 2, 1 // Step 2, isRTAO 1
+        );
+  
 
     auto& ssrPass = renderGraph->AddPass<Render::Pass::SSRPass>(
         "SSR Pass",
@@ -308,7 +391,8 @@ void Renderer::BuildRenderGraph(Core::Scene* scene)
     auto& lightingPass = renderGraph->AddPass<Render::Pass::DefferdLightingPass>("Deffered lighting pass",
         swapchain->extent,
         resourceManager.get(),
-        scene, rgEnvMap, rgIrrMap, prefiltermap, brdfMap, m_iblTextures.environmentCubemap, m_iblTextures.irradianceCubemap,m_iblTextures.prefilteredCubemap,m_iblTextures.brdfLUT);
+        scene, rgEnvMap, rgIrrMap, prefiltermap, brdfMap, m_iblTextures.environmentCubemap, m_iblTextures.irradianceCubemap, m_iblTextures.prefilteredCubemap, m_iblTextures.brdfLUT,m_RTShadowMode);
+
 
     auto& histogramPass = renderGraph->AddPass<Render::Pass::HistogramPass>("Histogram Pass",
         resourceManager.get());
@@ -337,8 +421,6 @@ void Renderer::BuildRenderGraph(Core::Scene* scene)
 
     renderGraph->Compile(*resourceManager);
 
-   
-
 }
 
 
@@ -349,6 +431,7 @@ void Renderer::recreateSwapchain(Core::Scene* scene, Core::Camera* camera) {
         glfwGetFramebufferSize(window, &width, &height);
         glfwWaitEvents();
     }
+
     waitIdle();
 
     swapchain->destroy(context->getDevice());
@@ -373,7 +456,6 @@ void Renderer::recreateSwapchain(Core::Scene* scene, Core::Camera* camera) {
 
     m_taaHistory[0] = resourceManager->CreateTexture(taaDesc);
     m_taaHistory[1] = resourceManager->CreateTexture(taaDesc);
-
 
     BuildRenderGraph(scene);
 
@@ -549,7 +631,9 @@ void Renderer::UpdateBuffers(uint32_t frameIDX, Core::Scene* scene, Core::Camera
     for (const auto& obj : scene->GetObjects()) {
         RenderTypes::InstanceData inst{};
         inst.model = obj.localTransform;
-        inst.materialID = meshIdx;
+        inst.materialID = obj.mesh->materialIndex;
+        inst.firstIndex = obj.mesh->firstIndex;
+        inst.vertexOffset = obj.mesh->vertexOffset;
         instances.push_back(inst);
         meshIdx++;
     }
@@ -637,23 +721,28 @@ void Renderer::UpdateBuffers(uint32_t frameIDX, Core::Scene* scene, Core::Camera
 
 void Renderer::RegisterBindlessTextures(const std::vector<Core::Mesh>& meshes)
 {
-    std::vector<VkDescriptorImageInfo> imageInfos;
+    std::vector<VkDescriptorImageInfo> imageInfos(Core::MAX_BINDLESS_TEXTURES);
+
+    VkDescriptorImageInfo fallbackInfo{};
+    fallbackInfo.imageView = VK_NULL_HANDLE;
+    fallbackInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    fallbackInfo.sampler = resourceManager->GetLinearSampler();
+
+    for (int i = 0; i < Core::MAX_BINDLESS_TEXTURES; ++i) {
+        imageInfos[i] = fallbackInfo;
+    }
 
     for (auto& mesh : meshes)
     {
         auto writeSlot = [&](Core::TextureHandle handle) {
-            VkDescriptorImageInfo info{};
             if (handle.IsValid()) {
+                VkDescriptorImageInfo info{};
                 Core::ImageBuilder::Image* img = resourceManager->GetTexture(handle);
                 info.imageView = img->view;
                 info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                info.sampler = resourceManager->GetLinearSampler();
+                imageInfos[handle.id] = info;
             }
-            else {
-                info.imageView = VK_NULL_HANDLE;
-                info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            }
-            info.sampler = resourceManager->GetLinearSampler();
-            imageInfos.push_back(info);
             };
 
         writeSlot(mesh.material.albedoMap);

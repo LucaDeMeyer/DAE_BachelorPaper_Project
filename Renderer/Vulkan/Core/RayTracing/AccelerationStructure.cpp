@@ -443,12 +443,11 @@ std::vector<Core::RT::RTInstance> Core::RT::RTAccelerationStructure::createInsta
 
 		RTInstance instance{};
 		instance.transform = object.localTransform;
-		instance.instanceCustomIndex = object.mesh->bindlessID;
 		instance.mask = 0xFF;
 		instance.instanceShaderBindingTableRecordOffset = 0;
 		instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
 		instance.accelerationStructureReference = address;
-
+		instance.instanceCustomIndex = static_cast<uint32_t>(i);
 		instances.push_back(instance);
 	}
 	return instances;

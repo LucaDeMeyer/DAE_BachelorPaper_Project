@@ -41,7 +41,6 @@ void main()
     vec4 material = texture(samplerMaterial, uv);
     float roughness = material.g;
 
-    // Early out: If the surface is too rough, skip tracing a ray to save immense GPU time!
     if (roughness > 0.4) {
         imageStore(outRTR, pixelCoord, vec4(0.0));
         return;
@@ -55,15 +54,14 @@ void main()
     // Calculate Reflection Ray
     vec3 reflectDir = normalize(reflect(viewDir, normal));
 
-    // Bias ray to prevent self-intersection (acne)
-    vec3 origin = worldPos + (normal * 0.05);
+  
+    vec3 origin = worldPos + (normal * 0.001);
 
-    uint rayFlags = gl_RayFlagsOpaqueEXT; // We want to run the Closest Hit shader!
+    uint rayFlags = gl_RayFlagsOpaqueEXT;
     float tMin = 0.01;
-    float tMax = 1000.0; // Shoot out into the horizon
+    float tMax = 1000.0; 
 
-    // Default to a 0.0 alpha, which means "Miss"
-    hitValue = vec4(0.0);
+  hitValue = vec4(vec3(0.0), 1.0);
 
     traceRayEXT(
         topLevelAS,    
@@ -79,9 +77,8 @@ void main()
         0              // payloadLocation
     );
 
-    // Fade out based on roughness, just like we did with SSR
     float roughnessFade = 1.0 - smoothstep(0.2, 0.4, roughness);
-    hitValue.a *= roughnessFade;
+    hitValue.rgb *= roughnessFade;
 
-    imageStore(outRTR, pixelCoord, hitValue);
+    imageStore(outRTR, pixelCoord, vec4(hitValue.rgb, 1.0));
 }

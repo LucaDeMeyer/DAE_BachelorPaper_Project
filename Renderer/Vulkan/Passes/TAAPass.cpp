@@ -22,10 +22,9 @@ namespace Render::Pass
         builder.AddDependency(m_lightingIn, Graph::AccessType::ComputeShaderRead);
         m_velocityIn = builder.FindResource("VelocityMap");
         builder.AddDependency(m_velocityIn, Graph::AccessType::ComputeShaderRead);
-      
 
-        builder.AddDependency(m_history0, Graph::AccessType::ReadWrite);
-        builder.AddDependency(m_history1, Graph::AccessType::ReadWrite);
+        builder.AddDependency(m_history0, Graph::AccessType::ComputeShaderRead);
+        builder.AddDependency(m_history1, Graph::AccessType::ComputeShaderRead);
         builder.AddDependency(m_taaOut, Graph::AccessType::ComputeShaderWrite);
     }
 
@@ -48,11 +47,18 @@ namespace Render::Pass
 
         auto* imgTaaOut = m_resourceManager->GetTexture(graph.GetResource(m_taaOut).physicalTexture);
 
+        Utils::TransitionImageLayout(
+            context.cmd, imgHistoryWrite->image,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL,
+            VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_SHADER_WRITE_BIT,
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+        );
+
         Core::DescriptorWriter writer;
         writer.writeImage(0, imgLightingIn->view, m_resourceManager->GetLinearSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
             .writeImage(1, imgVelocityIn->view, m_resourceManager->GetLinearSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
             .writeImage(2, imgDepthIn->view, m_resourceManager->GetLinearSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-            .writeImage(3, imgHistoryRead->view, m_resourceManager->GetLinearSampler(), VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+            .writeImage(3, imgHistoryRead->view, m_resourceManager->GetLinearSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
             .writeImage(4, imgTaaOut->view, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
             .writeImage(5, imgHistoryWrite->view, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
             .overwrite(m_descriptors.sets[context.currentFrameIndex], m_resourceManager->GetContext().getDevice());

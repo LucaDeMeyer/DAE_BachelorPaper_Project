@@ -6,7 +6,7 @@ void Render::Pass::RTAOPass::Setup(Graph::RenderGraphBuilder& builder)
     Core::TextureDesc maskDesc{};
     maskDesc.name = "RT_AOMask";
     maskDesc.extent = { m_Extent.width, m_Extent.height, 1 };
-    maskDesc.format = VK_FORMAT_R8_UNORM;
+    maskDesc.format = VK_FORMAT_R16G16B16A16_SFLOAT;
     maskDesc.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     maskDesc.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
     maskDesc.arrayLayers = 1;

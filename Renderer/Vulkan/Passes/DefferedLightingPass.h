@@ -26,9 +26,9 @@ namespace Render::Pass
 			VkExtent2D extent, Core::ResourceManager* resManager,
 			Core::Scene* scene,
 			Graph::RGHandle envMap, Graph::RGHandle irrMap, Graph::RGHandle prefiltermap, Graph::RGHandle brdflutmap,
-			Core::TextureHandle envTex, Core::TextureHandle irrTex, Core::TextureHandle prefilterTex, Core::TextureHandle brdfTex)
+			Core::TextureHandle envTex, Core::TextureHandle irrTex, Core::TextureHandle prefilterTex, Core::TextureHandle brdfTex,bool useRT)
 			: Pass(name), m_extent(extent), m_resourceManager(resManager), m_scene(scene),
-			m_envMap(envMap), m_irrMap(irrMap),m_prefilterMap(prefiltermap),m_brdflut(brdflutmap) ,m_envTex(envTex), m_irrTex(irrTex),m_prefilterTex(prefilterTex),m_brdfTex(brdfTex)
+			m_envMap(envMap), m_irrMap(irrMap),m_prefilterMap(prefiltermap),m_brdflut(brdflutmap) ,m_envTex(envTex), m_irrTex(irrTex),m_prefilterTex(prefilterTex),m_brdfTex(brdfTex),m_useRT(useRT)
 		{
 			Core::DescriptorBuilder builder(resManager->GetContext());
 
@@ -117,6 +117,8 @@ namespace Render::Pass
 		Core::ResourceManager* m_resourceManager;
 
 		Core::DescriptorBuilder::DescriptorSet m_LightingDescriptors;
+
+		bool m_useRT;
 	};
 
 }

@@ -111,7 +111,9 @@ namespace RenderTypes
     struct InstanceData {
         alignas(16) glm::mat4 model;
         alignas(16) uint32_t materialID;
-        uint32_t padding[3]; // Explicit padding to meet the 16-byte alignment requirement
+        uint32_t firstIndex;  
+        uint32_t vertexOffset;  
+        uint32_t padding;
     };
 
     /// @brief Ultra-fast constant data sent directly to the shader registers.

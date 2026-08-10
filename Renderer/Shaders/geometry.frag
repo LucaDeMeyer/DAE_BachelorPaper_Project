@@ -15,43 +15,68 @@ layout(location = 1) out vec4 outNormal;
 layout(location = 2) out vec4 outMaterial;
 layout(location = 3) out vec2 outVelocity;
 
+// 1. Your Bindless Textures
 layout(set = 0, binding = 4) uniform sampler2D textures[];
+
+// 2. We need the Material struct to know the REAL texture indices and fallbacks!
+struct Material {
+    vec4 baseColor;
+    int albedoTexIdx;
+    int normalTexIdx;
+    int metallicRoughnessTexIdx;
+    float metallic;
+    float roughness;
+    float padding1, padding2, padding3;
+};
+
+// Assuming your Global Descriptor Set is at set = 0, binding 11 (same as RTR Pass)
+layout(set = 0, binding = 11, std430) readonly buffer MaterialBuffer { 
+    Material materials[]; 
+} globalMaterials;
 
 void main()
 {
-    uint albedoIdx   = inMaterialID * 3 + 0;
-    uint normalIdx   = inMaterialID * 3 + 1;
-    uint materialIdx = inMaterialID * 3 + 2;
+    // Fetch the actual material properties from the SSBO
+    Material mat = globalMaterials.materials[inMaterialID];
 
-    vec4 albedo = texture(textures[nonuniformEXT(albedoIdx)], inTexCoord);
-    if (albedo.a < 0.1)
-        discard;
+    // --- ALBEDO ---
+    vec4 albedo = mat.baseColor;
+    if (mat.albedoTexIdx >= 0) {
+        albedo *= texture(textures[nonuniformEXT(mat.albedoTexIdx)], inTexCoord);
+    }
+    
+    if (albedo.a < 0.1) discard;
     outAlbedo = albedo;
-    // Normal maps are authored in "Tangent Space" (where Z is always pointing straight 
-    // out from the surface, meaning blue = vec3(0.5, 0.5, 1.0)).
-    // We construct a TBN (Tangent, Bitangent, Normal) matrix to rotate that flat normal 
-    // map out into 3D World Space so the lighting pass can calculate reflections correctly.
-  vec3 localNormal = texture(textures[nonuniformEXT(normalIdx)], inTexCoord).rgb;
-    localNormal = normalize(localNormal * 2.0 - 1.0); // Unpack [0, 1] texture to [-1, 1] vector
-    vec3 T = normalize(inTangent);
-    vec3 B = normalize(inBitangent);
-    vec3 N = normalize(inNormal);
-    mat3 TBN = mat3(T, B, N);
 
-    vec3 worldNormal = normalize(TBN * localNormal);
 
-    outNormal = vec4(worldNormal, 1.0);
+    if (mat.normalTexIdx >= 0) {
+        vec3 localNormal = texture(textures[nonuniformEXT(mat.normalTexIdx)], inTexCoord).rgb;
+        localNormal = normalize(localNormal * 2.0 - 1.0); 
+        vec3 T = normalize(inTangent);
+        vec3 B = normalize(inBitangent);
+        vec3 N = normalize(inNormal);
+        mat3 TBN = mat3(T, B, N);
+        outNormal = vec4(normalize(TBN * localNormal), 1.0);
+    } else {
+  
+        outNormal = vec4(normalize(inNormal), 1.0);
+    }
 
-    // GLTF standard packs Roughness into Green and Metallic into Blue
-    vec4 mr = texture(textures[nonuniformEXT(materialIdx)], inTexCoord);
-    outMaterial = vec4(mr.b, mr.g, 0.0, 1.0); 
+   
+    float finalMetallic = mat.metallic;
+    float finalRoughness = mat.roughness; 
 
+    if (mat.metallicRoughnessTexIdx >= 0) {
+        vec4 mr = texture(textures[nonuniformEXT(mat.metallicRoughnessTexIdx)], inTexCoord);
+        finalRoughness *= mr.g; 
+        finalMetallic *= mr.b; 
+    }
+    outMaterial = vec4(finalMetallic, finalRoughness, 0.0, 1.0); 
+
+    // --- VELOCITY ---
     vec2 currNDC = inCurrClipPos.xy / inCurrClipPos.w;
     vec2 prevNDC = inPrevClipPos.xy / inPrevClipPos.w;
-
     vec2 currUV = currNDC * 0.5 + 0.5;
     vec2 prevUV = prevNDC * 0.5 + 0.5;
-
     outVelocity = currUV - prevUV;
-  
 }

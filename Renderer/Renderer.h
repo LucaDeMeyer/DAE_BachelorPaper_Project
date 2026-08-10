@@ -123,7 +123,7 @@ private:
     std::unique_ptr<UI::UILayer> m_UiLayer;
 
     int m_debugView = 0;
-    int m_RTShadowMode = 1;
+    int m_RTShadowMode = 0;
     bool m_graphNeedsRebuild = false;
     RenderTypes::PhysicalCameraSettings m_CameraSettings;
 
@@ -135,6 +135,8 @@ private:
     glm::mat4 m_prevViewProj{ 1.0f };
 
     Core::TextureHandle m_taaHistory[2];
+    Core::TextureHandle m_svgfHistory[2];
+    Core::TextureHandle m_rtaoHistory[2];
 
     uint32_t m_absoluteFrameCount = 0;
 

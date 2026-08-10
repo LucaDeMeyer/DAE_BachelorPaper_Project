@@ -257,5 +257,16 @@ void Render::Pass::SSAOPass::Execute(const RenderTypes::RenderContext& context, 
     vkCmdBindDescriptorSets(context.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ssaoBlurPipeline->layout,
         0, 1, &m_ssaoBlurDescriptorSet.sets[context.currentFrameIndex], 0, nullptr);
     vkCmdDraw(context.cmd, 3, 1, 0, 0);
+
+
+
     vkCmdEndRendering(context.cmd);
+
+    Utils::TransitionImageLayout(
+        context.cmd, blurSSAO->image,
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_2_SHADER_READ_BIT,
+        VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+        VK_IMAGE_ASPECT_COLOR_BIT, 1, 1
+    );
 }

@@ -15,8 +15,10 @@ struct Vertex {
 struct InstanceData {
     mat4 model;
     uint materialID;
+    uint firstIndex;
+    uint vertexOffset;
+    uint padding;
 };
-
 layout(set = 0, binding = 0) uniform CameraUBO {
     mat4 view;
     mat4 proj;
@@ -87,7 +89,10 @@ void main()
     // We use the Gram-Schmidt process to forcefully re-orthogonalize the Tangent 
     // with respect to the Normal. Without this, normal maps on smooth curves will 
     // look warped and mathematically incorrect.
-    T = normalize(T - dot(T, N) * N);
+    vec3 orthogonalizedT = T - dot(T, N) * N;
+    if (length(orthogonalizedT) > 0.0001) {
+        T = normalize(orthogonalizedT);
+    }
 
     outNormal = N;
     outTangent = T;

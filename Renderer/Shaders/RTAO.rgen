@@ -21,7 +21,7 @@ layout(set = 1, binding = 0) uniform accelerationStructureEXT topLevelAS;
 
 layout(set = 2, binding = 0) uniform sampler2D samplerDepth;
 layout(set = 2, binding = 1) uniform sampler2D samplerNormal;
-layout(set = 2, binding = 2, r8) uniform writeonly image2D outAOMask; 
+layout(set = 2, binding = 2, rgba16f) uniform writeonly image2D outAOMask; 
 
 layout(push_constant) uniform PushConsts {
     uint frameCount;

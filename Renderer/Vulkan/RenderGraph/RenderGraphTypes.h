@@ -39,6 +39,7 @@ namespace Render::Graph
     inline bool IsReadAccess(AccessType access) {
         return access == AccessType::ShaderRead ||
             access == AccessType::ReadWrite ||
+            access == AccessType::ComputeShaderRead ||
             access == AccessType::TransferRead ||
             access == AccessType::DepthRead ||
             access == AccessType::DepthShaderRead;

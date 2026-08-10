@@ -3,6 +3,7 @@
 #extension GL_EXT_shader_explicit_arithmetic_types : require
 #extension GL_EXT_scalar_block_layout : require
 #extension GL_EXT_nonuniform_qualifier : require
+
 struct Vertex {
     vec3 position;
     vec3 color;
@@ -12,10 +13,12 @@ struct Vertex {
     vec3 biTangent;
 };
 
-
 struct InstanceData {
     mat4 model;
     uint materialID;
+    uint firstIndex;
+    uint vertexOffset;
+    uint padding;
 };
 
 layout(set = 0, binding = 0) uniform CameraUBO {
@@ -39,8 +42,8 @@ layout(set = 0, binding = 2) readonly buffer InstanceBuffer {
 
 layout(push_constant) uniform PushConstants {
     uint64_t vertexAddress;
-      uint instanceID;
-}pushConstants;
+    uint instanceID;
+} pushConstants;
 
 layout(location = 0) out vec2 outTexCoord;
 layout(location = 1) out flat uint outMaterialID;

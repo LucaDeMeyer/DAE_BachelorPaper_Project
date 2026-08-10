@@ -167,6 +167,13 @@ namespace Render::Graph
         // 3. Build the Dependency Graph based on Write/Read access
         buildAdjacencyGraph(resourceTouchList, adj, indeg);
 
+        for (uint32_t src = 0; src < adj.size(); ++src) {
+            for (uint32_t dst : adj[src]) {
+                std::cerr << m_passes[src]->GetName() << "(" << src << ") -> "
+                    << m_passes[dst]->GetName() << "(" << dst << ")\n";
+            }
+        }
+
         // 4. Cull Passes: If a pass writes to a texture that is never read by the Swapchain or a side-effect pass, cull it!
         std::vector<bool> needed = CullPasses(resourceTouchList);
 
@@ -181,14 +188,7 @@ namespace Render::Graph
         //    based on their declared AccessTypes.
         buildBarriers(resourceManager, resourceTouchList, needed);
 
-        // 8. Finalize the active passes array, stripping out anything that was culled
-        std::vector<std::unique_ptr<Pass>> finalPasses;
-        finalPasses.reserve(m_passOrder.size());
-
-        for (uint32_t idx : m_passOrder) {
-            finalPasses.push_back(std::move(m_passes[idx]));
-        }
-        m_passes.swap(finalPasses);
+    
     }
 
 
@@ -344,7 +344,19 @@ namespace Render::Graph
                 }
             }
         }
+        for (uint32_t r = 0; r < resCount; ++r) {
+            const auto& res = m_physicalResources[r];
+            std::string name = res.isBuffer ? res.bufferDesc.name : res.textureDesc.name;
+            if (name.find("SVGF") == std::string::npos) continue;
 
+            std::cerr << "Resource '" << name << "' (id=" << r << ") touches:\n";
+            for (const auto& [passIdx, access] : resourceTouchList[r]) {
+                std::cerr << "  pass " << m_passes[passIdx]->GetName()
+                    << " (" << passIdx << ") access=" << static_cast<int>(access)
+                    << " isWrite=" << IsWriteAccess(access)
+                    << " isRead=" << IsReadAccess(access) << "\n";
+            }
+        }
         // Find the passes that absolutely must execute (e.g., writing to the Swapchain screen, 
 		// or specifically flagged as having a Side Effect). These are our starting "Roots".
         for (uint32_t p = 0; p < passCount; ++p) {
@@ -390,6 +402,10 @@ namespace Render::Graph
                     q.push(producer);
                 }
             }
+        }
+
+        for (uint32_t p = 0; p < passCount; ++p) {
+            std::cerr << m_passes[p]->GetName() << " needed=" << needed[p] << "\n";
         }
 
         return needed;
@@ -439,6 +455,15 @@ namespace Render::Graph
         // every pass we flagged as "needed", it means two passes are stuck waiting for each other!
         // (e.g., Pass A needs Pass B's output, but Pass B needs Pass A's output).
         size_t neededCount = std::ranges::count(needed, true);
+        if (passOrder.size() != neededCount) {
+            std::unordered_set<uint32_t> resolved(passOrder.begin(), passOrder.end());
+            for (uint32_t p = 0; p < needed.size(); ++p) {
+                if (needed[p] && !resolved.count(p)) {
+                    std::cerr << "Stuck pass: " << m_passes[p]->GetName()
+                        << " (indeg=" << indeg[p] << ")\n";
+                }
+            }
+        }
         assert(passOrder.size() == neededCount && "Cycle detected in Render Graph passes!");
 
         // Store the exact execution order and build a compiled list so the 
@@ -724,6 +749,9 @@ namespace Render::Graph
             m_resourceLastUse.clear();
             m_barriersPerPass.clear();
             m_passOrder.clear();
+
+            m_frameQueriesValid.assign(m_frameQueriesValid.size(), false);
+
         }
 
         RGHandle RenderGraph::RegisterImportedImage(VkImage image, VkFormat format, VkExtent3D extent, VkImageLayout currentLayout, uint32_t mipLevels, uint32_t arrayLayers) {

@@ -36,6 +36,7 @@ namespace UI {
                 ImGui::RadioButton("Roughness/Metallic", m_debugViewMode, 3);
                 ImGui::RadioButton("Depth", m_debugViewMode, 4);
                 ImGui::RadioButton("SSAO", m_debugViewMode, 5);
+                ImGui::RadioButton("SSR", m_debugViewMode, 6);
                 ImGui::EndMenu();
             }
 

@@ -169,4 +169,6 @@ void Render::Pass::GeometryPass::Execute(const RenderTypes::RenderContext& conte
     }
 
     vkCmdEndRendering(context.cmd);
+
+
 }

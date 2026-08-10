@@ -6,11 +6,28 @@ layout(location = 1) in flat uint inMaterialID;
 
 layout(set = 0, binding = 4) uniform sampler2D textures[];
 
+struct Material {
+    vec4 baseColor;
+    int albedoTexIdx;
+    int normalTexIdx;
+    int metallicRoughnessTexIdx;
+    float metallic;
+    float roughness;
+    float padding1, padding2, padding3;
+};
+
+layout(set = 0, binding = 11, std430) readonly buffer MaterialBuffer { 
+    Material materials[]; 
+} globalMaterials;
+
 void main()
 {
-    uint albedoIdx = inMaterialID * 3 + 0;
-    vec4 albedo = texture(textures[nonuniformEXT(albedoIdx)], inTexCoord);
-    if (albedo.a < 0.5f)
-        discard;
-
+    Material mat = globalMaterials.materials[inMaterialID];
+    
+    if (mat.albedoTexIdx >= 0) {
+        vec4 albedo = texture(textures[nonuniformEXT(mat.albedoTexIdx)], inTexCoord);
+        if (albedo.a < 0.1) {
+            discard;
+        }
+    }
 }
