@@ -81,7 +81,6 @@ void main() {
         }
     }
 
-    // Guard against the (rare) case where every neighbor got rejected
     if (sumWeight < 1e-6) {
         imageStore(outGraph, pixelCoord, vec4(centerColor, centerVariance));
         return;

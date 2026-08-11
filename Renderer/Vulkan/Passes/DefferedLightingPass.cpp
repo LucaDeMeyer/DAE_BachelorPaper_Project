@@ -53,12 +53,12 @@ void Render::Pass::DefferdLightingPass::Setup(Graph::RenderGraphBuilder& builder
     builder.AddDependency(m_brdflut, Graph::AccessType::ShaderRead);
 
 
-    m_rtShadowMask = builder.FindResource("RT_ShadowMask");
+    m_rtShadowMask = builder.FindResource("SVGF_Shadow_Final");
     if (m_rtShadowMask.IsValid()) {
         builder.AddDependency(m_rtShadowMask, Graph::AccessType::ShaderRead);
     }
 
-    m_rtPointShadowMask = builder.FindResource("RT_PointShadowMask"); //  this has to go through svgf at some point since we need to many samples to make it work properly
+    m_rtPointShadowMask = builder.FindResource("SVGF_PointShadow_Final");
     if (m_rtPointShadowMask.IsValid()) {
         builder.AddDependency(m_rtPointShadowMask, Graph::AccessType::ShaderRead);
     }

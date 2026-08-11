@@ -26,6 +26,7 @@ void Render::Pass::SVGFTemporalPass::Setup(Graph::RenderGraphBuilder& builder)
 
     outDesc.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     outDesc.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    outDesc.arrayLayers = m_arrayLayers;
 
     m_output = builder.CreateTexture(outDesc,false);
     builder.AddDependency(m_output, Graph::AccessType::ComputeShaderWrite);
@@ -69,12 +70,11 @@ void Render::Pass::SVGFTemporalPass::Execute(const RenderTypes::RenderContext& c
 
     vkCmdBindDescriptorSets(context.cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeline->layout, 0, 2, boundSets.data(), 0, nullptr);
 
-    // Push isRTAO flag (int)
     vkCmdPushConstants(context.cmd, m_pipeline->layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(int), &m_isRTAO);
 
     uint32_t groupX = (m_Extent.width + 15) / 16;
     uint32_t groupY = (m_Extent.height + 15) / 16;
-    vkCmdDispatch(context.cmd, groupX, groupY, 1);
+    vkCmdDispatch(context.cmd, groupX, groupY, m_arrayLayers);
 
    
 }

@@ -23,10 +23,10 @@ namespace Render::Pass
             const std::string& inputName,  
             const std::string& outputName,  
             int stepSize,
-            int isRTAO)
+            int isRTAO, uint32_t arrayLayers = 1)
             : Pass(name), m_resourceManager(resManager), m_Extent(extent),
             m_inputName(inputName), m_outputName(outputName), 
-            m_stepSize(stepSize), m_isRTAO(isRTAO)
+            m_stepSize(stepSize), m_isRTAO(isRTAO),m_arrayLayers(arrayLayers)
         {
             m_descriptorSet = Core::DescriptorBuilder(m_resourceManager->GetContext())
                 .addLayoutBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT) // Noisy Input
@@ -37,7 +37,12 @@ namespace Render::Pass
                 .build(Core::MAX_FRAMES_IN_FLIGHT);
 
             Core::ComputePipelineConfig config{};
-            config.computeShader = "shaders/svgf_spatial.comp.spv";
+            if (m_arrayLayers > 1) {
+                config.computeShader = "shaders/svgf_spatial_array.comp.spv";
+            }
+            else {
+                config.computeShader = "shaders/svgf_spatial.comp.spv";
+            }
             config.descriptorLayouts = { m_descriptorSet.layout };
 
             // Define the Push Constant for stepSize
@@ -73,6 +78,7 @@ namespace Render::Pass
         std::string m_outputName;
         int m_stepSize = 1;
         int m_isRTAO = 0;
+        uint32_t m_arrayLayers;
 
 
         Graph::RGHandle m_inputImage;

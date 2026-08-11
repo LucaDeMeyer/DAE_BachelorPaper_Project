@@ -20,10 +20,10 @@ namespace Render::Pass
             Core::TextureHandle physHistory1,
             const std::string& inputName,  
             const std::string& outputName, 
-            int isRTAO)
+            int isRTAO, uint32_t arrayLayers = 1)
             : Pass(name), m_resourceManager(resManager), m_Extent(extent),
             m_history0(history0), m_history1(history1),
-            m_physHistory0(physHistory0), m_physHistory1(physHistory1),m_inputName(inputName),m_outputName(outputName),m_isRTAO(isRTAO)
+            m_physHistory0(physHistory0), m_physHistory1(physHistory1),m_inputName(inputName),m_outputName(outputName),m_isRTAO(isRTAO), m_arrayLayers(arrayLayers)
         {
             m_descriptorSet = Core::DescriptorBuilder(m_resourceManager->GetContext())
                 .addLayoutBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT) // Noisy RTR
@@ -36,9 +36,13 @@ namespace Render::Pass
                 .build(Core::MAX_FRAMES_IN_FLIGHT);
 
             Core::ComputePipelineConfig config{};
-            config.computeShader = "shaders/svgf_temporal.comp.spv";
+            if (m_arrayLayers > 1) {
+                config.computeShader = "shaders/svgf_temporal_array.comp.spv";
+            }
+            else {
+                config.computeShader = "shaders/svgf_temporal.comp.spv";
+            }
 
-            // Set 0 = Global (Camera, Lights), Set 1 = Our Pass Textures
             config.descriptorLayouts = {
                 m_resourceManager->GetGlobalDescriptorSet().layout,
                 m_descriptorSet.layout
@@ -70,7 +74,7 @@ namespace Render::Pass
     private:
         Core::ResourceManager* m_resourceManager = nullptr;
         VkExtent2D m_Extent;
-
+        uint32_t m_arrayLayers;
     
         Graph::RGHandle m_history0;
         Graph::RGHandle m_history1;
