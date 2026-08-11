@@ -84,7 +84,7 @@ public:
     int* GetRTAOMode() { return &m_RTAOMode; }
 
     int* GetRTSPP() { return &m_rtSPP; }
-
+    int* GetAOSPP() { return &m_aoSPP; }
     /// @brief Retrieves a pointer to the physical camera settings (Aperture, Shutter Speed, ISO).
     RenderTypes::PhysicalCameraSettings* GetCameraSettings() { return &m_CameraSettings; }
     /// @brief Retrieves a pointer to the Render Graph rebuild flag.
@@ -161,7 +161,7 @@ private:
     uint32_t m_absoluteFrameCount = 0;
 
     int m_rtSPP = 1;
-
+    int m_aoSPP = 1;
     bool m_takeScreenshot = false;
 
     bool m_isBenchmarking = false;

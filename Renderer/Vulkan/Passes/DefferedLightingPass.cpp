@@ -58,7 +58,7 @@ void Render::Pass::DefferdLightingPass::Setup(Graph::RenderGraphBuilder& builder
         builder.AddDependency(m_rtShadowMask, Graph::AccessType::ShaderRead);
     }
 
-    m_rtPointShadowMask = builder.FindResource("RT_PointShadowMask"); //  his has to go through svgf at some points since we need to many samples to make it work properly
+    m_rtPointShadowMask = builder.FindResource("RT_PointShadowMask"); //  this has to go through svgf at some point since we need to many samples to make it work properly
     if (m_rtPointShadowMask.IsValid()) {
         builder.AddDependency(m_rtPointShadowMask, Graph::AccessType::ShaderRead);
     }
@@ -78,13 +78,12 @@ void Render::Pass::DefferdLightingPass::Setup(Graph::RenderGraphBuilder& builder
         }
     }
 
-
     m_rtAOGuided = builder.FindResource("SVGF_RTAO_Final");
     if (m_rtAOGuided.IsValid()) {
         builder.AddDependency(m_rtAOGuided, Graph::AccessType::ShaderRead);
     }
 
-    m_rtAOUnguided = builder.FindResource("RT_AOMask");
+    m_rtAOUnguided = builder.FindResource("SVGF_RTAO_Final");
     if (m_rtAOUnguided.IsValid()) {
         builder.AddDependency(m_rtAOUnguided, Graph::AccessType::ShaderRead);
     }
@@ -99,7 +98,7 @@ void Render::Pass::DefferdLightingPass::Setup(Graph::RenderGraphBuilder& builder
         builder.AddDependency(m_rtReflectionGuided, Graph::AccessType::ShaderRead);
     }
 
-    m_rtReflectionUnguided = builder.FindResource("RT_ReflectionOutput");
+    m_rtReflectionUnguided = builder.FindResource("SVGF_RTR_Final");
     if (m_rtReflectionUnguided.IsValid()) {
         builder.AddDependency(m_rtReflectionUnguided, Graph::AccessType::ShaderRead);
     }

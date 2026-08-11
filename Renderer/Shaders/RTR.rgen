@@ -80,14 +80,10 @@ void main()
       
         uint seed = pixelCoord.x + pixelCoord.y * uint(resolution.x) + pc.frameCount * 719393 + i * 1337;
 
-        vec3 jitter = vec3(
-            rnd(seed) * 2.0 - 1.0, 
-            rnd(seed) * 2.0 - 1.0, 
-            rnd(seed) * 2.0 - 1.0
-        );
-
-        jitter = normalize(jitter) * rnd(seed) * roughness;
-        vec3 sampleDir = normalize(reflectDir + jitter);
+    vec3 jitterRaw = vec3(rnd(seed)*2.0-1.0, rnd(seed)*2.0-1.0, rnd(seed)*2.0-1.0);
+    float jitterLen = length(jitterRaw);
+    vec3 jitter = (jitterLen > 1e-6) ? (jitterRaw / jitterLen) * rnd(seed) * roughness : vec3(0.0);
+    vec3 sampleDir = normalize(reflectDir + jitter);
 
         if (dot(sampleDir, normal) <= 0.01) {
             sampleDir = reflectDir;
@@ -113,10 +109,13 @@ void main()
     }
 
  
-    vec3 finalReflection = accumulatedColor / float(pc.spp);
-
+    vec3 finalReflection = accumulatedColor / float(max(pc.spp, 1u)); 
     float roughnessFade = 1.0 - smoothstep(0.2, 0.4, roughness);
     finalReflection *= roughnessFade;
+    if (any(isnan(finalReflection)) || any(isinf(finalReflection))) {
+        finalReflection = vec3(0.0);
+    }
+    finalReflection = clamp(finalReflection, vec3(0.0), vec3(100.0));
 
     imageStore(outRTR, pixelCoord, vec4(finalReflection, 1.0));
 }

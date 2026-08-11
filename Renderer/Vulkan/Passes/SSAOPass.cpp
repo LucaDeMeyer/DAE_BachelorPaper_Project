@@ -2,6 +2,11 @@
 #include "vulkan/Core/GraphicsContext.h"
 #include <random>
 
+struct SSAOPushConstants {
+    glm::vec2 screenRes;
+    int sampleCount;
+};
+
 float lerp(float a, float b, float f) { return a + f * (b - a); }
 
 Render::Pass::SSAOPass::SSAOPass(const std::string& name, VkExtent2D extent, Core::ResourceManager* resManager, const Core::Scene* scene)
@@ -129,7 +134,7 @@ Render::Pass::SSAOPass::SSAOPass(const std::string& name, VkExtent2D extent, Cor
     ssaoConfig.vertexShader = "shaders/FullscreenVert.vert.spv"; 
     ssaoConfig.fragmentShader = "shaders/ssao.frag.spv";
     ssaoConfig.descriptorLayouts = { m_ssaoDescriptorSet.layout };
-    ssaoConfig.pushConstants = { {VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glm::vec2)} };
+    ssaoConfig.pushConstants = { {VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SSAOPushConstants)} };
     ssaoConfig.colorFormats = { VK_FORMAT_R8_UNORM };
     ssaoConfig.enableDepthTest = false;
     ssaoConfig.enableDepthWrite = false;
@@ -212,9 +217,11 @@ void Render::Pass::SSAOPass::Execute(const RenderTypes::RenderContext& context, 
     VkRenderingAttachmentInfo colorAttachment{ .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO, .imageView = rawSSAO->view, .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR, .storeOp = VK_ATTACHMENT_STORE_OP_STORE, .clearValue = {.color = { 1.0f, 1.0f, 1.0f, 1.0f } } };
     VkRenderingInfo renderInfo{ .sType = VK_STRUCTURE_TYPE_RENDERING_INFO, .renderArea = { {0, 0}, m_extent }, .layerCount = 1, .colorAttachmentCount = 1, .pColorAttachments = &colorAttachment };
 
-    glm::vec2 screenres{};
-    screenres.x = static_cast<float>( m_extent.width);
-    screenres.y = static_cast<float>(m_extent.height);
+    SSAOPushConstants pushData{};
+    pushData.screenRes.x = static_cast<float>(m_extent.width);
+    pushData.screenRes.y = static_cast<float>(m_extent.height);
+
+    pushData.sampleCount = std::min((int)context.m_aoSPP, 64);
 
     vkCmdBeginRendering(context.cmd, &renderInfo);
     vkCmdBindPipeline(context.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_ssaoPipeline->pipeline);
@@ -222,7 +229,7 @@ void Render::Pass::SSAOPass::Execute(const RenderTypes::RenderContext& context, 
 
     vkCmdPushConstants(
         context.cmd, m_ssaoPipeline->layout, VK_SHADER_STAGE_FRAGMENT_BIT,
-        0, sizeof(glm::vec2), &screenres
+        0, sizeof(SSAOPushConstants), &pushData
     );
 
     vkCmdDraw(context.cmd, 3, 1, 0, 0);

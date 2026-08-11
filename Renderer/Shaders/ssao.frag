@@ -24,6 +24,7 @@ layout(set = 0, binding = 4)uniform sampler2D samplerNoise;
 
 layout(push_constant) uniform PushConstants {
     vec2 screenRes; 
+    int sampleCount; 
 } pc;
 
 
@@ -48,7 +49,7 @@ void main()
     float radius = 0.5;
     float bias   = 0.025;
 
-    for (int i = 0; i < 64; ++i)
+    for (int i = 0; i < pc.sampleCount; ++i)
     {
         vec3 samplePos = TBN * kernel.samples[i].xyz;
         samplePos = fragPos + samplePos * radius;
@@ -64,5 +65,5 @@ void main()
         occlusion += (occluderViewPos.z >= samplePos.z + bias ? 1.0 : 0.0) * rangeCheck;
     }
 
-    FragColor = 1.0 - (occlusion / 64.0);
+    FragColor = 1.0 - (occlusion / float(pc.sampleCount));
 }

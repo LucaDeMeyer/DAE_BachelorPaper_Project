@@ -111,5 +111,7 @@ void main() {
         accumulatedColor = vec3(0.0);
     }
 
+    accumulatedColor = clamp(accumulatedColor, vec3(0.0), vec3(100.0));
+
     imageStore(outReflectionImage, pixelCoord, vec4(accumulatedColor, 1.0));
 }

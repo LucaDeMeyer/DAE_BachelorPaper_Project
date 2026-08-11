@@ -94,6 +94,7 @@ namespace RenderTypes
         PhysicalCameraSettings cameraSettings;
         int m_enableRTShadows;
         uint32_t m_spp;
+        uint32_t m_aoSPP;
     };
 
     /// @brief Global View/Projection matrices (Aligned to GLSL std140).

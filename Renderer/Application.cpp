@@ -122,6 +122,7 @@ void Application::InitUI() {
         m_renderer->GetRTRMode(),
         m_renderer->GetRTAOMode(),
         m_renderer->GetRTSPP(),
+        m_renderer->GetAOSPP(),
         onHdrLoad
     ));
 

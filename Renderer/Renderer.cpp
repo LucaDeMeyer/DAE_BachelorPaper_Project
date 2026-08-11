@@ -710,6 +710,8 @@ void Renderer::drawFrame(Core::Scene* scene, Core::Camera* camera, bool uiModeAc
     rendercontext.cameraSettings = m_CameraSettings;
     rendercontext.m_enableRTShadows = m_RTShadowMode;
     rendercontext.m_spp = m_rtSPP;
+    rendercontext.m_aoSPP = m_aoSPP;
+
     renderGraph->Execute(rendercontext);
 
    
@@ -746,7 +748,6 @@ void Renderer::drawFrame(Core::Scene* scene, Core::Camera* camera, bool uiModeAc
 
 
     if (m_takeScreenshot) {
-        // Create a temporary buffer to hold the image data
         Core::BufferDesc bufDesc{};
         bufDesc.name = "Screenshot_Buffer";
         bufDesc.size = swapchain->extent.width * swapchain->extent.height * 4;
@@ -757,7 +758,6 @@ void Renderer::drawFrame(Core::Scene* scene, Core::Camera* camera, bool uiModeAc
         screenshotBufferHandle = resourceManager->CreateBuffer(bufDesc);
         screenshotBuffer = resourceManager->GetBuffer(screenshotBufferHandle);
 
-        // Transition to Transfer Source
         Utils::TransitionImageLayout(fd.commandBuffer, swapchain->images[imageIndex],
             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
             VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_2_TRANSFER_READ_BIT,
@@ -776,7 +776,7 @@ void Renderer::drawFrame(Core::Scene* scene, Core::Camera* camera, bool uiModeAc
             VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT);
     }
     else {
-        // Standard Transition
+     
         Utils::TransitionImageLayout(fd.commandBuffer, swapchain->images[imageIndex],
             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
             VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, 0,
@@ -1080,11 +1080,8 @@ void Renderer::DumpBenchmark(const std::string& filepath) {
         printf("Failed to open benchmark file!\n");
         return;
     }
-
     file << "Pass Name, Average GPU Time (ms), Min (ms), Max (ms)\n";
-
     float totalGpuTime = 0.0f;
-
     for (const auto& [passName, timings] : m_benchmarkDataGpu) {
         if (timings.empty()) continue;
 
@@ -1094,15 +1091,11 @@ void Renderer::DumpBenchmark(const std::string& filepath) {
             if (t < minTime) minTime = t;
             if (t > maxTime) maxTime = t;
         }
-
         float avg = sum / timings.size();
         totalGpuTime += avg;
-
         file << passName << "," << avg << "," << minTime << "," << maxTime << "\n";
     }
-
     file << "TOTAL," << totalGpuTime << ",,\n";
     file.close();
-
     printf("Benchmark complete! Saved to %s (Total GPU Avg: %.3f ms)\n", filepath.c_str(), totalGpuTime);
 }

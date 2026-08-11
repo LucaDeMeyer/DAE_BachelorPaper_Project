@@ -1,7 +1,5 @@
 #version 460
-
 layout(local_size_x = 16, local_size_y = 16) in;
-
 layout(set = 0, binding = 0) uniform sampler2D samplerInput;
 layout(set = 0, binding = 1) uniform sampler2D samplerDepth;
 layout(set = 0, binding = 2) uniform sampler2D samplerNormal;
@@ -23,7 +21,6 @@ void main() {
     if (pixelCoord.x >= size.x || pixelCoord.y >= size.y) return;
 
     vec2 uv = (vec2(pixelCoord) + 0.5) / size;
-
     float centerDepth = texture(samplerDepth, uv).r;
     if (centerDepth >= 0.9999) {
         imageStore(outGraph, pixelCoord, vec4(0.0));
@@ -33,35 +30,23 @@ void main() {
     vec3 centerNormal = texture(samplerNormal, uv).xyz;
     vec4 centerData = texture(samplerInput, uv);
     vec3 centerColor = centerData.rgb;
-    
-    // Compute local color variance across a small neighborhood for spatial safety
-    vec3 m1 = vec3(0.0);
-    vec3 m2 = vec3(0.0);
-    for (int y = -1; y <= 1; y++) {
-        for (int x = -1; x <= 1; x++) {
-            vec3 c = texture(samplerInput, uv + vec2(x, y) / size).rgb;
-            m1 += c;
-            m2 += c * c;
-        }
-    }
-    m1 /= 9.0;
-    m2 /= 9.0;
-    float localColorVariance = Luminance(abs(m2 - (m1 * m1)));
-    float centerVariance = (pc.isRTAO == 1) ? centerData.a : localColorVariance;
+    float centerVariance = centerData.a;
 
     // Edge-Stopping Tuning Variables
-    float phiDepth = 1.0;     
-    float phiNormal = 128.0;  
-    float phiLuma = 2.0;      
+    float phiDepth  = 1.0;
+    float phiNormal = 128.0;
+    float phiLuma   = 2.0;
 
     // A-Trous 5x5 Weights
     float weights[3] = float[](3.0/8.0, 1.0/4.0, 1.0/16.0);
 
-    vec3 sumColor = centerColor * weights[0] * weights[0];
+    vec3  sumColor    = centerColor * weights[0] * weights[0];
     float sumVariance = centerVariance * weights[0] * weights[0];
-    float sumWeight = weights[0] * weights[0];
+    float sumWeight   = weights[0] * weights[0];
+    float centerLuma  = Luminance(centerColor);
 
-    float centerLuma = Luminance(centerColor);
+    // FIX: use stddev, not raw variance, for the luma edge-stopping term
+    float centerStdDev = sqrt(max(centerVariance, 0.0));
 
     for (int y = -2; y <= 2; y++) {
         for (int x = -2; x <= 2; x++) {
@@ -71,29 +56,42 @@ void main() {
             if (offsetUV.x < 0.0 || offsetUV.x > 1.0 || offsetUV.y < 0.0 || offsetUV.y > 1.0) continue;
 
             float sampleDepth = texture(samplerDepth, offsetUV).r;
-            vec3 sampleNormal = texture(samplerNormal, offsetUV).xyz;
-            vec4 sampleData = texture(samplerInput, offsetUV);
-            float sampleLuma = Luminance(sampleData.rgb);
 
-            float wDepth = exp(-abs(centerDepth - sampleDepth) * phiDepth);
+            // FIX: reject sky/background neighbors outright instead of letting
+            // a soft depth-difference weight leak black into edge pixels
+            if (sampleDepth >= 0.9999) continue;
+
+            vec3 sampleNormal = texture(samplerNormal, offsetUV).xyz;
+            vec4 sampleData   = texture(samplerInput, offsetUV);
+            float sampleLuma  = Luminance(sampleData.rgb);
+
+            float wDepth  = exp(-abs(centerDepth - sampleDepth) * phiDepth);
             float wNormal = pow(max(dot(centerNormal, sampleNormal), 0.0), phiNormal);
 
-            float wLuma = 1.0; 
+            float wLuma = 1.0;
             if (pc.isRTAO == 0) {
-                wLuma = exp(-abs(centerLuma - sampleLuma) / (phiLuma * centerVariance + 1e-4));
+                // FIX: denominator now uses stddev (sqrt(variance)) per SVGF,
+                // not raw variance — raw variance over-rejects when variance is small
+                wLuma = exp(-abs(centerLuma - sampleLuma) / (phiLuma * centerStdDev + 1e-4));
             }
 
             float w = wDepth * wNormal * wLuma;
             float kernelWeight = weights[abs(x)] * weights[abs(y)];
             float finalWeight = w * kernelWeight;
 
-            sumColor += sampleData.rgb * finalWeight;
-            sumVariance += centerVariance * finalWeight * finalWeight; 
-            sumWeight += finalWeight;
+            sumColor    += sampleData.rgb * finalWeight;
+            sumVariance += sampleData.a * finalWeight * finalWeight;
+            sumWeight   += finalWeight;
         }
     }
 
-    vec3 finalColor = sumColor / sumWeight;
+    // Guard against the (rare) case where every neighbor got rejected
+    if (sumWeight < 1e-6) {
+        imageStore(outGraph, pixelCoord, vec4(centerColor, centerVariance));
+        return;
+    }
+
+    vec3  finalColor    = sumColor / sumWeight;
     float finalVariance = sumVariance / (sumWeight * sumWeight);
 
     imageStore(outGraph, pixelCoord, vec4(finalColor, finalVariance));

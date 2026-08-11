@@ -207,6 +207,13 @@ namespace UI {
 			*m_ssp = currentSPP;
               
             }
+
+            ImGui::Separator();
+            int aospp = *m_aoSPP;
+            if (ImGui::SliderInt("AO Samples Per Pixel", &aospp, 1, 64)) {
+                *m_aoSPP = aospp;
+
+            }
         }
         ImGui::End();
     }
