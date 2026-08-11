@@ -15,10 +15,9 @@ layout(location = 1) out vec4 outNormal;
 layout(location = 2) out vec4 outMaterial;
 layout(location = 3) out vec2 outVelocity;
 
-// 1. Your Bindless Textures
+
 layout(set = 0, binding = 4) uniform sampler2D textures[];
 
-// 2. We need the Material struct to know the REAL texture indices and fallbacks!
 struct Material {
     vec4 baseColor;
     int albedoTexIdx;
@@ -29,17 +28,16 @@ struct Material {
     float padding1, padding2, padding3;
 };
 
-// Assuming your Global Descriptor Set is at set = 0, binding 11 (same as RTR Pass)
 layout(set = 0, binding = 11, std430) readonly buffer MaterialBuffer { 
     Material materials[]; 
 } globalMaterials;
 
 void main()
 {
-    // Fetch the actual material properties from the SSBO
+
     Material mat = globalMaterials.materials[inMaterialID];
 
-    // --- ALBEDO ---
+  
     vec4 albedo = mat.baseColor;
     if (mat.albedoTexIdx >= 0) {
         albedo *= texture(textures[nonuniformEXT(mat.albedoTexIdx)], inTexCoord);
@@ -73,7 +71,7 @@ void main()
     }
     outMaterial = vec4(finalMetallic, finalRoughness, 0.0, 1.0); 
 
-    // --- VELOCITY ---
+
     vec2 currNDC = inCurrClipPos.xy / inCurrClipPos.w;
     vec2 prevNDC = inPrevClipPos.xy / inPrevClipPos.w;
     vec2 currUV = currNDC * 0.5 + 0.5;

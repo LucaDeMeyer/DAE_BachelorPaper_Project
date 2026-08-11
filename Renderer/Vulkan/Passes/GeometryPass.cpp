@@ -22,7 +22,7 @@ void Render::Pass::GeometryPass::Setup(Graph::RenderGraphBuilder& builder)
     albedoDesc.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
     albedoDesc.mipLevels = 1;
     albedoDesc.arrayLayers = 1;
-    m_Albedo = builder.CreateTexture(albedoDesc);
+    m_Albedo = builder.CreateTexture(albedoDesc,false);
     builder.AddDependency(m_Albedo, Graph::AccessType::ColorAttachmentWrite);
 
     Core::TextureDesc normalDesc{};
@@ -33,7 +33,7 @@ void Render::Pass::GeometryPass::Setup(Graph::RenderGraphBuilder& builder)
     normalDesc.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
     normalDesc.mipLevels = 1;
     normalDesc.arrayLayers = 1;
-    m_Normal = builder.CreateTexture(normalDesc);
+    m_Normal = builder.CreateTexture(normalDesc,false);
     builder.AddDependency(m_Normal, Graph::AccessType::ColorAttachmentWrite);
 
     Core::TextureDesc materialDesc{};
@@ -44,7 +44,7 @@ void Render::Pass::GeometryPass::Setup(Graph::RenderGraphBuilder& builder)
     materialDesc.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
     materialDesc.mipLevels = 1;
     materialDesc.arrayLayers = 1;
-    m_Material = builder.CreateTexture(materialDesc);
+    m_Material = builder.CreateTexture(materialDesc,false);
     builder.AddDependency(m_Material, Graph::AccessType::ColorAttachmentWrite);
 
     m_Depth = builder.FindResource("SceneDepth");
@@ -59,7 +59,7 @@ void Render::Pass::GeometryPass::Setup(Graph::RenderGraphBuilder& builder)
     velDesc.mipLevels = 1;
     velDesc.arrayLayers = 1;
 
-    m_Velocity = builder.CreateTexture(velDesc);
+    m_Velocity = builder.CreateTexture(velDesc,false);
     builder.AddDependency(m_Velocity, Graph::AccessType::ColorAttachmentWrite);
 
 }

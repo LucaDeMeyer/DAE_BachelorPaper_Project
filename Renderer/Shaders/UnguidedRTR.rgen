@@ -1,0 +1,115 @@
+#version 460
+#extension GL_EXT_ray_tracing : require
+#extension GL_EXT_ray_query : require
+
+#define PI 3.14159265359
+
+layout(set = 1, binding = 0) uniform accelerationStructureEXT topLevelAS;
+layout(set = 2, binding = 0, rgba16f) uniform writeonly image2D outReflectionImage; 
+
+layout(set = 0, binding = 0) uniform CameraUBO {
+    mat4 view;
+    mat4 proj;
+    mat4 invView;
+    mat4 invProj;
+    mat4 invViewProj;
+    mat4 invProjUnjittered;
+    mat4 viewProj;
+    mat4 prevViewProj;
+} camera;
+
+layout(push_constant) uniform PushConsts {
+    uint frameCount;
+    uint spp;
+} pc;
+
+uint pcg_hash(uint seed) {
+    uint state = seed * 747796405u + 2891336453u;
+    uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
+}
+
+float rnd(inout uint seed) {
+    seed = pcg_hash(seed);
+    return float(seed) / 4294967296.0;
+}
+
+void main() {
+    const ivec2 pixelCoord = ivec2(gl_LaunchIDEXT.xy);
+    const vec2 resolution = vec2(gl_LaunchSizeEXT.xy);
+    const vec2 UV = (vec2(pixelCoord) + 0.5) / resolution;
+    
+    vec2 ndc = UV * 2.0 - 1.0;
+    ndc.y = -ndc.y;
+
+    vec4 originClip = vec4(ndc, 0.0, 1.0);
+    vec4 targetClip = vec4(ndc, 1.0, 1.0);
+
+    vec4 originWorld = camera.invViewProj * originClip;
+    originWorld.xyz /= originWorld.w;
+
+    vec4 targetWorld = camera.invViewProj * targetClip;
+    targetWorld.xyz /= targetWorld.w;
+
+    vec3 rayOrigin = originWorld.xyz;
+    vec3 rayDir = normalize(targetWorld.xyz - originWorld.xyz);
+
+    rayQueryEXT primaryQuery;
+    rayQueryInitializeEXT(primaryQuery, topLevelAS, gl_RayFlagsOpaqueEXT, 0xFF, rayOrigin, 0.001, rayDir, 10000.0);
+    while (rayQueryProceedEXT(primaryQuery)) {}
+
+    vec3 accumulatedColor = vec3(0.0);
+
+    if (rayQueryGetIntersectionTypeEXT(primaryQuery, true) != gl_RayQueryCommittedIntersectionNoneEXT) {
+        float tHit = rayQueryGetIntersectionTEXT(primaryQuery, true);
+        vec3 hitPos = rayOrigin + rayDir * tHit;
+        vec3 normal = vec3(0.0, 1.0, 0.0); 
+
+        vec3 reflectDir = reflect(rayDir, normal);
+        vec3 bounceOrigin = hitPos + (normal * 0.01); 
+
+        vec3 up = abs(reflectDir.z) < 0.999 ? vec3(0,0,1) : vec3(1,0,0);
+        vec3 tangent = normalize(cross(up, reflectDir));
+        vec3 bitangent = cross(reflectDir, tangent);
+        float reflectionSpread = 0.05;
+
+        for (uint i = 0; i < pc.spp; ++i) {
+            uint seed = pixelCoord.x + pixelCoord.y * uint(resolution.x) + pc.frameCount * 719393 + i * 1337;
+
+            vec3 jitter = vec3(rnd(seed) * 2.0 - 1.0, rnd(seed) * 2.0 - 1.0, rnd(seed) * 2.0 - 1.0);
+            jitter = normalize(jitter) * rnd(seed) * reflectionSpread;
+            vec3 sampleDir = normalize(reflectDir + jitter);
+
+            if (dot(sampleDir, normal) <= 0.01) {
+                sampleDir = reflectDir;
+            }
+
+            rayQueryEXT reflectionQuery;
+            rayQueryInitializeEXT(
+                reflectionQuery, 
+                topLevelAS, 
+                gl_RayFlagsOpaqueEXT, 
+                0xFF, 
+                bounceOrigin, 
+                0.001, 
+                sampleDir, 
+                1000.0
+            );
+
+            while (rayQueryProceedEXT(reflectionQuery)) {}
+
+            if (rayQueryGetIntersectionTypeEXT(reflectionQuery, true) != gl_RayQueryCommittedIntersectionNoneEXT) {
+                float rDist = rayQueryGetIntersectionTEXT(reflectionQuery, true);
+                float attenuation = 1.0 / (1.0 + rDist * 0.1); 
+                accumulatedColor += vec3(attenuation);
+            } else {
+                accumulatedColor += vec3(0.1, 0.2, 0.3); 
+            }
+        }
+        accumulatedColor /= float(pc.spp);
+    } else {
+        accumulatedColor = vec3(0.0);
+    }
+
+    imageStore(outReflectionImage, pixelCoord, vec4(accumulatedColor, 1.0));
+}

@@ -2,7 +2,6 @@
 
 layout(local_size_x = 16, local_size_y = 16) in;
 
-// --- Set 0: Global Data ---
 layout(set = 0, binding = 0) uniform CameraUBO {
     mat4 view;
     mat4 proj;
@@ -29,14 +28,12 @@ layout(push_constant) uniform Constants {
     int isRTAO;
 } pc;
 
-// Helper: Reconstruct World Position from Depth
 vec3 ReconstructWorldPos(vec2 uv, float depth, mat4 invViewProj) {
     vec4 clipPos = vec4(uv * 2.0 - 1.0, depth, 1.0);
     vec4 worldPos = invViewProj * clipPos;
     return worldPos.xyz / worldPos.w;
 }
 
-// Helper: Get Luminance for Variance calculation
 float Luminance(vec3 color) {
     return dot(color, vec3(0.299, 0.587, 0.114));
 }
@@ -49,7 +46,7 @@ void main() {
 
     vec2 uv = (vec2(pixelCoord) + 0.5) / size;
 
-    // 1. Read Current Frame Data
+  
     float depth = texture(samplerDepth, uv).r;
     
     // Skip the skybox
@@ -63,7 +60,7 @@ void main() {
     vec4 centerColor = texture(samplerRTR, uv);
     float roughness = texture(samplerMaterial, uv).g;
 
-    // 2. Calculate 3x3 Neighborhood Mean and Variance
+  
     vec3 m1 = vec3(0.0); // First moment (Mean)
     vec3 m2 = vec3(0.0); // Second moment (Variance prep)
     
@@ -83,11 +80,10 @@ void main() {
     m1 /= 9.0;
     m2 /= 9.0;
     
-    // Standard Variance Formula: E[X^2] - E[X]^2
+ 
     vec3 variance3 = abs(m2 - (m1 * m1)); 
     float localVariance = Luminance(variance3);
 
-    // 3. Reproject to find the previous pixel coordinate
     vec3 worldPos = ReconstructWorldPos(uv, depth, camera.invViewProj);
     vec4 prevClip = camera.prevViewProj * vec4(worldPos, 1.0);
     vec2 prevUV = (prevClip.xy / prevClip.w) * 0.5 + 0.5;
@@ -105,19 +101,16 @@ void main() {
         history.rgb = clamp(history.rgb, colorMin, colorMax);
     }
 
-    // 5. Accumulate!
-    // Mix alpha based on how rough the surface is. 
-    // Smooth surfaces accumulate slowly (0.05) to eliminate all noise.
-    // Rougher surfaces adapt faster (0.2) because spatial blur handles them better anyway.
+    
     float alpha;
     if (pc.isRTAO == 1) {
-        alpha = validHistory ? 0.05 : 1.0; // AO is very noisy, accumulate heavily
+        alpha = validHistory ? 0.05 : 1.0; 
     } else {
-        // RTR uses roughness
+   
         float roughness = texture(samplerMaterial, uv).g;
-        // Early out for rough surfaces (saves performance for RTR)
+     
        if (roughness > 0.4) {
-            vec4 roughOut = vec4(centerColor.rgb, localVariance); // Use real local variance instead of 1.0!
+            vec4 roughOut = vec4(centerColor.rgb, localVariance);
             imageStore(outHistory, pixelCoord, roughOut);
             imageStore(outGraph, pixelCoord, roughOut);
             return;
@@ -127,12 +120,10 @@ void main() {
 
     vec3 accumulatedColor = mix(history.rgb, centerColor.rgb, alpha);
     
-    // Mix the variance temporally so the spatial blur pass gets stable instructions
     float accumulatedVariance = mix(history.a, localVariance, alpha);
 
-    // 6. Dual Write the result (RGB = Color, A = Variance)
     vec4 finalResult = vec4(accumulatedColor, accumulatedVariance);
     
-    imageStore(outHistory, pixelCoord, finalResult); // Saves for next frame
-    imageStore(outGraph, pixelCoord, finalResult);   // Sends to next graph pass
+    imageStore(outHistory, pixelCoord, finalResult);
+    imageStore(outGraph, pixelCoord, finalResult);  
 }

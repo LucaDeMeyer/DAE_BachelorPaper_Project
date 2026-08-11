@@ -93,6 +93,7 @@ namespace RenderTypes
         int debugViewMode;
         PhysicalCameraSettings cameraSettings;
         int m_enableRTShadows;
+        uint32_t m_spp;
     };
 
     /// @brief Global View/Projection matrices (Aligned to GLSL std140).
@@ -170,7 +171,6 @@ namespace RenderTypes
         int useRTShadows;
     };
 
-
     struct GPUMaterial {
         glm::vec4 baseColor;
 
@@ -181,6 +181,11 @@ namespace RenderTypes
 
         float roughness;
         float padding[3];
+    };
+
+    struct RTPushConstants {
+        uint32_t frameCount;
+        uint32_t spp;
     };
 
 }

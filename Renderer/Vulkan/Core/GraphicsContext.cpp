@@ -240,11 +240,14 @@ void Core::GraphicsContextBuilder::createLogicalDevice(GraphicsContext& ctx) {
     }
 
  
-    
+    VkPhysicalDeviceRayQueryFeaturesKHR rayqueryFeatures{};
+    rayqueryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
+    rayqueryFeatures.rayQuery = VK_TRUE;
 
     VkPhysicalDeviceAccelerationStructureFeaturesKHR accelerationfeatures{};
     accelerationfeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
     accelerationfeatures.accelerationStructure = VK_TRUE;
+    accelerationfeatures.pNext = &rayqueryFeatures;
     
     
     VkPhysicalDeviceRayTracingPipelineFeaturesKHR RTPipelineFeatures{};

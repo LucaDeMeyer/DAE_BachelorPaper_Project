@@ -17,28 +17,28 @@ Render::Pass::DefferdLightingPass::~DefferdLightingPass()
 
 void Render::Pass::DefferdLightingPass::Setup(Graph::RenderGraphBuilder& builder)
 {
-	Core::TextureDesc lightingOutDesc{};
-	lightingOutDesc.name = "LightingOut";
-	lightingOutDesc.extent = { m_extent.width,m_extent.height,1 };
-	lightingOutDesc.format = VK_FORMAT_R32G32B32A32_SFLOAT;
-	lightingOutDesc.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-	lightingOutDesc.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-	lightingOutDesc.mipLevels = 1;
-	lightingOutDesc.arrayLayers = 1;
-	m_LightingOut = builder.CreateTexture(lightingOutDesc);
-	builder.AddDependency(m_LightingOut, Graph::AccessType::ColorAttachmentWrite);
+    Core::TextureDesc lightingOutDesc{};
+    lightingOutDesc.name = "LightingOut";
+    lightingOutDesc.extent = { m_extent.width,m_extent.height,1 };
+    lightingOutDesc.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+    lightingOutDesc.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    lightingOutDesc.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    lightingOutDesc.mipLevels = 1;
+    lightingOutDesc.arrayLayers = 1;
+    m_LightingOut = builder.CreateTexture(lightingOutDesc, true);
+    builder.AddDependency(m_LightingOut, Graph::AccessType::ColorAttachmentWrite);
 
-	m_Albedo = builder.FindResource("GBuffer_Albedo");
-	builder.AddDependency(m_Albedo, Graph::AccessType::ShaderRead);
+    m_Albedo = builder.FindResource("GBuffer_Albedo");
+    builder.AddDependency(m_Albedo, Graph::AccessType::ShaderRead);
 
-	m_Normal = builder.FindResource("GBuffer_Normal");
-	builder.AddDependency(m_Normal, Graph::AccessType::ShaderRead);
+    m_Normal = builder.FindResource("GBuffer_Normal");
+    builder.AddDependency(m_Normal, Graph::AccessType::ShaderRead);
 
-	m_Material = builder.FindResource("GBuffer_Material");
-	builder.AddDependency(m_Material, Graph::AccessType::ShaderRead);
+    m_Material = builder.FindResource("GBuffer_Material");
+    builder.AddDependency(m_Material, Graph::AccessType::ShaderRead);
 
-	m_Depth = builder.FindResource("SceneDepth");
-	builder.AddDependency(m_Depth, Graph::AccessType::DepthShaderRead);
+    m_Depth = builder.FindResource("SceneDepth");
+    builder.AddDependency(m_Depth, Graph::AccessType::DepthShaderRead);
 
     m_envMap = builder.FindResource("EnvironmentCubemap");
     builder.AddDependency(m_envMap, Graph::AccessType::ShaderRead);
@@ -53,53 +53,63 @@ void Render::Pass::DefferdLightingPass::Setup(Graph::RenderGraphBuilder& builder
     builder.AddDependency(m_brdflut, Graph::AccessType::ShaderRead);
 
 
-
-    if (m_useRT)
-    {
-        m_rtAOMask = builder.FindResource("SVGF_RTAO_Final");
-        if (m_rtAOMask.IsValid()) builder.AddDependency(m_rtAOMask, Graph::AccessType::ShaderRead);
-
-        m_rtReflectionMask = builder.FindResource("SVGF_RTR_Final");
-        if (m_rtReflectionMask.IsValid()) builder.AddDependency(m_rtReflectionMask, Graph::AccessType::ShaderRead);
-
-        m_rtShadowMask = builder.FindResource("RT_ShadowMask");
-        if (m_rtShadowMask.IsValid()) {
-            builder.AddDependency(m_rtShadowMask, Graph::AccessType::ShaderRead);
-        }
-
-        m_rtPointShadowMask = builder.FindResource("RT_PointShadowMask");
-        if (m_rtPointShadowMask.IsValid()) {
-            builder.AddDependency(m_rtPointShadowMask, Graph::AccessType::ShaderRead);
-        }
+    m_rtShadowMask = builder.FindResource("SVGF_Shadow_Final");
+    if (m_rtShadowMask.IsValid()) {
+        builder.AddDependency(m_rtShadowMask, Graph::AccessType::ShaderRead);
     }
-    else
-    {
-        m_ssaoMap = builder.FindResource("SSAO_Blur");
-        if (m_ssaoMap.IsValid()) builder.AddDependency(m_ssaoMap, Graph::AccessType::ShaderRead);
 
-        m_ssrOut = builder.FindResource("SSR_Output");
-        if (m_ssrOut.IsValid()) builder.AddDependency(m_ssrOut, Graph::AccessType::ShaderRead);
+    m_rtPointShadowMask = builder.FindResource("RT_PointShadowMask"); //  his has to go through svgf at some points since we need to many samples to make it work properly
+    if (m_rtPointShadowMask.IsValid()) {
+        builder.AddDependency(m_rtPointShadowMask, Graph::AccessType::ShaderRead);
+    }
 
-        m_shadowMap = builder.FindResource("ShadowMap");
+    m_shadowMap = builder.FindResource("ShadowMap");
+    if (m_shadowMap.IsValid()) {
         builder.AddDependency(m_shadowMap, Graph::AccessType::ShaderRead);
-
-        m_pointShadowMaps.clear();
-        uint32_t activeLights = std::min((uint32_t)m_scene->GetPointLights().size(), Core::MAX_POINT_LIGHTS);
-
-        for (uint32_t i = 0; i < activeLights; i++) {
-            auto handle = builder.FindResource("PointShadow_" + std::to_string(i));
-            if (handle.IsValid()) {
-                builder.AddDependency(handle, Graph::AccessType::DepthShaderRead);
-                m_pointShadowMaps.push_back(handle);
-            }
-        }
-
     }
 
-  
+    m_pointShadowMaps.clear();
+    uint32_t activeLights = std::min((uint32_t)m_scene->GetPointLights().size(), Core::MAX_POINT_LIGHTS);
+    for (uint32_t i = 0; i < activeLights; i++) {
+        auto handle = builder.FindResource("PointShadow_" + std::to_string(i));
+        if (handle.IsValid()) {
+            builder.AddDependency(handle, Graph::AccessType::DepthShaderRead);
+            m_pointShadowMaps.push_back(handle);
+        }
+    }
 
 
+    m_rtAOGuided = builder.FindResource("SVGF_RTAO_Final");
+    if (m_rtAOGuided.IsValid()) {
+        builder.AddDependency(m_rtAOGuided, Graph::AccessType::ShaderRead);
+    }
+
+    m_rtAOUnguided = builder.FindResource("RT_AOMask");
+    if (m_rtAOUnguided.IsValid()) {
+        builder.AddDependency(m_rtAOUnguided, Graph::AccessType::ShaderRead);
+    }
+
+    m_ssaoMap = builder.FindResource("SSAO_Blur");
+    if (m_ssaoMap.IsValid()) {
+        builder.AddDependency(m_ssaoMap, Graph::AccessType::ShaderRead);
+    }
+
+    m_rtReflectionGuided = builder.FindResource("SVGF_RTR_Final");
+    if (m_rtReflectionGuided.IsValid()) {
+        builder.AddDependency(m_rtReflectionGuided, Graph::AccessType::ShaderRead);
+    }
+
+    m_rtReflectionUnguided = builder.FindResource("RT_ReflectionOutput");
+    if (m_rtReflectionUnguided.IsValid()) {
+        builder.AddDependency(m_rtReflectionUnguided, Graph::AccessType::ShaderRead);
+    }
+
+    m_ssrOut = builder.FindResource("SSR_Output");
+    if (m_ssrOut.IsValid()) {
+        builder.AddDependency(m_ssrOut, Graph::AccessType::ShaderRead);
+    }
 }
+
 void Render::Pass::DefferdLightingPass::Execute(const RenderTypes::RenderContext& context, Render::Graph::RenderGraph& graph)
 {
     Core::ImageBuilder::Image* albedoImage = context.resourceManager->GetTexture(graph.GetResource(m_Albedo).physicalTexture);
@@ -108,42 +118,42 @@ void Render::Pass::DefferdLightingPass::Execute(const RenderTypes::RenderContext
     Core::ImageBuilder::Image* depthImage = context.resourceManager->GetTexture(graph.GetResource(m_Depth).physicalTexture);
     Core::ImageBuilder::Image* lightingOUT = context.resourceManager->GetTexture(graph.GetResource(m_LightingOut).physicalTexture);
 
+    // Dynamic Binding Resolution
     VkImageView rasterShadowView = VK_NULL_HANDLE;
     if (m_shadowMap.IsValid()) {
-        Core::ImageBuilder::Image* shadowImage = context.resourceManager->GetTexture(graph.GetResource(m_shadowMap).physicalTexture);
-        rasterShadowView = shadowImage->view;
+        rasterShadowView = context.resourceManager->GetTexture(graph.GetResource(m_shadowMap).physicalTexture)->view;
     }
 
     VkImageView activeAOView = VK_NULL_HANDLE;
-    if (context.m_enableRTShadows && m_rtAOMask.IsValid()) {
-        auto* imgRTAO = context.resourceManager->GetTexture(graph.GetResource(m_rtAOMask).physicalTexture);
-        activeAOView = imgRTAO->view;
+    if (m_rtAOGuided.IsValid()) {
+        activeAOView = context.resourceManager->GetTexture(graph.GetResource(m_rtAOGuided).physicalTexture)->view;
     }
-    else if (!context.m_enableRTShadows && m_ssaoMap.IsValid()) {
-        auto* imgSSAO = context.resourceManager->GetTexture(graph.GetResource(m_ssaoMap).physicalTexture);
-        activeAOView = imgSSAO->view;
+    else if (m_rtAOUnguided.IsValid()) {
+        activeAOView = context.resourceManager->GetTexture(graph.GetResource(m_rtAOUnguided).physicalTexture)->view;
+    }
+    else if (m_ssaoMap.IsValid()) {
+        activeAOView = context.resourceManager->GetTexture(graph.GetResource(m_ssaoMap).physicalTexture)->view;
     }
 
     VkImageView activeReflectionView = VK_NULL_HANDLE;
-    if (context.m_enableRTShadows && m_rtReflectionMask.IsValid()) {
-        auto* imgRTR = context.resourceManager->GetTexture(graph.GetResource(m_rtReflectionMask).physicalTexture);
-        activeReflectionView = imgRTR->view;
+    if (m_rtReflectionGuided.IsValid()) {
+        activeReflectionView = context.resourceManager->GetTexture(graph.GetResource(m_rtReflectionGuided).physicalTexture)->view;
     }
-    else if (!context.m_enableRTShadows && m_ssrOut.IsValid()) {
-        auto* imgSSR = context.resourceManager->GetTexture(graph.GetResource(m_ssrOut).physicalTexture);
-        activeReflectionView = imgSSR->view;
+    else if (m_rtReflectionUnguided.IsValid()) {
+        activeReflectionView = context.resourceManager->GetTexture(graph.GetResource(m_rtReflectionUnguided).physicalTexture)->view;
+    }
+    else if (m_ssrOut.IsValid()) {
+        activeReflectionView = context.resourceManager->GetTexture(graph.GetResource(m_ssrOut).physicalTexture)->view;
     }
 
-    VkImageView rtShadowView = VK_NULL_HANDLE; // Fallback
+    VkImageView rtShadowView = VK_NULL_HANDLE;
     if (m_rtShadowMask.IsValid()) {
-        auto* imgRTShadow = context.resourceManager->GetTexture(graph.GetResource(m_rtShadowMask).physicalTexture);
-        rtShadowView = imgRTShadow->view;
+        rtShadowView = context.resourceManager->GetTexture(graph.GetResource(m_rtShadowMask).physicalTexture)->view;
     }
 
-    VkImageView rtPointShadowView = VK_NULL_HANDLE; // Fallback
+    VkImageView rtPointShadowView = VK_NULL_HANDLE;
     if (m_rtPointShadowMask.IsValid()) {
-        auto* imgRTPointShadow = context.resourceManager->GetTexture(graph.GetResource(m_rtPointShadowMask).physicalTexture);
-        rtPointShadowView = imgRTPointShadow->view;
+        rtPointShadowView = context.resourceManager->GetTexture(graph.GetResource(m_rtPointShadowMask).physicalTexture)->view;
     }
 
     Core::ImageBuilder::Image* envImage = context.resourceManager->GetTexture(m_envTex);
@@ -191,7 +201,6 @@ void Render::Pass::DefferdLightingPass::Execute(const RenderTypes::RenderContext
         vkUpdateDescriptorSets(context.resourceManager->GetContext().getDevice(), 1, &write, 0, nullptr);
     }
 
-
     VkRenderingAttachmentInfo colorAttachment{};
     colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
     colorAttachment.imageView = lightingOUT->view;
@@ -224,7 +233,7 @@ void Render::Pass::DefferdLightingPass::Execute(const RenderTypes::RenderContext
 
     RenderTypes::LightingDebugPushConstant push{};
     push.debugMode = context.debugViewMode;
-    push.useRTShadows = context.m_enableRTShadows ? 1 : 0;
+    push.useRTShadows = context.m_enableRTShadows > 0 ? 1 : 0;
 
     vkCmdPushConstants(
         context.cmd, m_pipeline->layout, VK_SHADER_STAGE_FRAGMENT_BIT,

@@ -11,7 +11,7 @@ void Render::Pass::RTAOPass::Setup(Graph::RenderGraphBuilder& builder)
     maskDesc.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
     maskDesc.arrayLayers = 1;
 
-    m_aoMask = builder.CreateTexture(maskDesc);
+    m_aoMask = builder.CreateTexture(maskDesc,true);
 
     builder.AddDependency(m_aoMask, Graph::AccessType::ComputeShaderWrite);
 
@@ -47,9 +47,11 @@ void Render::Pass::RTAOPass::Execute(const RenderTypes::RenderContext& context, 
         0, static_cast<uint32_t>(boundSets.size()), boundSets.data(), 0, nullptr
     );
 
-    // Push the frame index so our random seed changes every frame for TAA
-    uint32_t frameCount = context.resourceManager->GetFrameIndex(); 
-    vkCmdPushConstants(context.cmd, m_pipeline->layout, VK_SHADER_STAGE_RAYGEN_BIT_KHR, 0, sizeof(uint32_t), &frameCount);
+    
+    RenderTypes::RTPushConstants pushData{};
+    pushData.frameCount = context.resourceManager->GetFrameIndex();
+    pushData.spp = context.m_spp;
+    vkCmdPushConstants(context.cmd, m_pipeline->layout, VK_SHADER_STAGE_RAYGEN_BIT_KHR, 0, sizeof(RenderTypes::RTPushConstants), &pushData);
 
     auto pfn_vkCmdTraceRaysKHR = (PFN_vkCmdTraceRaysKHR)vkGetDeviceProcAddr(m_resourceManager->GetContext().getDevice(), "vkCmdTraceRaysKHR");
 

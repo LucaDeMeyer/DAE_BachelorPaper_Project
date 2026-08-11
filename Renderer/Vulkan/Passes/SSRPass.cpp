@@ -12,7 +12,7 @@ void Render::Pass::SSRPass::Setup(Graph::RenderGraphBuilder& builder)
     ssrDesc.mipLevels = 1;
     ssrDesc.arrayLayers = 1;
 
-    m_ssrOut = builder.CreateTexture(ssrDesc);
+    m_ssrOut = builder.CreateTexture(ssrDesc,true);
     builder.AddDependency(m_ssrOut, Graph::AccessType::ColorAttachmentWrite);
 
     m_Depth = builder.FindResource("SceneDepth");
@@ -83,11 +83,4 @@ void Render::Pass::SSRPass::Execute(const RenderTypes::RenderContext& context, R
 
     vkCmdEndRendering(context.cmd);
 
-    Utils::TransitionImageLayout(
-        context.cmd, ssrOutImage->image,
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_2_SHADER_READ_BIT,
-        VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
-        VK_IMAGE_ASPECT_COLOR_BIT, 1, 1
-    );
 }

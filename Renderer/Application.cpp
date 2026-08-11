@@ -119,6 +119,9 @@ void Application::InitUI() {
         m_renderer->GetGraphNeedsRebuildFlag(),
         m_renderer->GetCameraSettings(),
         m_renderer->GetRTShadowMode(),
+        m_renderer->GetRTRMode(),
+        m_renderer->GetRTAOMode(),
+        m_renderer->GetRTSPP(),
         onHdrLoad
     ));
 

@@ -41,6 +41,23 @@ layout(set = 2, binding = 0) uniform sampler2D samplerDepth;
 layout(set = 2, binding = 1) uniform sampler2D samplerNormal;
 layout(set = 2, binding = 2, r8) uniform writeonly image2DArray outPointShadowMask; 
 
+layout(push_constant) uniform PushConsts {
+    uint frameCount;
+    uint spp;
+} pc;
+
+// --- Random Number Generator ---
+uint pcg_hash(uint seed) {
+    uint state = seed * 747796405u + 2891336453u;
+    uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
+}
+
+float rnd(inout uint seed) {
+    seed = pcg_hash(seed);
+    return float(seed) / 4294967296.0;
+}
+
 void main() 
 {
     ivec2 pixelCoord = ivec2(gl_LaunchIDEXT.xy);
@@ -64,47 +81,74 @@ void main()
                     gl_RayFlagsOpaqueEXT | 
                     gl_RayFlagsSkipClosestHitShaderEXT;
 
+    // Loop through every point light in the scene
     for (uint i = 0; i < sceneLights.pointLightCount; i++) {
-        vec3 lightPos = sceneLights.pointLights[i].position.xyz;
-        vec3 fragToLight = lightPos - worldPos;
-        float distanceToLight = length(fragToLight);
+        vec3 lightCenter = sceneLights.pointLights[i].position.xyz;
+        float lightRadius = sceneLights.pointLights[i].position.w;
+        
+        vec3 fragToLightCenter = lightCenter - worldPos;
+        float distanceToCenter = length(fragToLightCenter);
 
-        if (distanceToLight < 0.001) {
+        // If we are literally inside the light center
+        if (distanceToCenter < 0.001) {
             imageStore(outPointShadowMask, ivec3(pixelCoord, i), vec4(1.0));
             continue;
         }
 
-        vec3 lightDir = fragToLight / distanceToLight;
-        float NoL = dot(normal, lightDir);
+        vec3 centerDir = fragToLightCenter / distanceToCenter;
+        float NoL = dot(normal, centerDir);
 
+        // Early exit: if the surface is facing away from the light center, it's in shadow
         if (NoL <= 0.0) {
             imageStore(outPointShadowMask, ivec3(pixelCoord, i), vec4(0.0));
             continue;
         }
 
-        float normalBias = 0.002;
-        float lightBias  = 0.005;
-        vec3 origin = worldPos + (normal * normalBias) + (lightDir * lightBias);
+        // --- SPP ACCUMULATOR ---
+        float accumulatedShadow = 0.0;
 
-        float tMin = 0.001;
-        float tMax = distanceToLight;
+        for (uint s = 0; s < pc.spp; ++s) {
+            // Seed uniquely combines Pixel, Frame, Light Index, and Sample Index
+            uint seed = pixelCoord.x + pixelCoord.y * uint(resolution.x) + 
+                        pc.frameCount * 719393 + i * 1337 + s * 9973;
 
-        hitValue = 0.0;
+            // Generate a random point inside a sphere for the area light jitter
+            vec3 jitter = vec3(rnd(seed) * 2.0 - 1.0, 
+                               rnd(seed) * 2.0 - 1.0, 
+                               rnd(seed) * 2.0 - 1.0);
+            
+            // Normalize and scale by radius (and random depth within radius)
+            jitter = normalize(jitter) * rnd(seed) * lightRadius;
 
-        traceRayEXT(
-            topLevelAS,
-            rayFlags,
-            0xFF,
-            0,
-            0,
-            0,
-            origin,
-            tMin,
-            lightDir,
-            tMax,
-            0
-        );
+            // Compute actual ray target for this specific sample
+            vec3 sampleLightPos = lightCenter + jitter;
+            vec3 fragToSample = sampleLightPos - worldPos;
+            float sampleDist = length(fragToSample);
+            vec3 sampleDir = fragToSample / sampleDist;
 
-        imageStore(outPointShadowMask, ivec3(pixelCoord, i), vec4(hitValue));
+            float normalBias = 0.002;
+            float lightBias  = 0.005;
+            vec3 origin = worldPos + (normal * normalBias) + (sampleDir * lightBias);
+
+            hitValue = 0.0; // Default to shadowed
+
+            traceRayEXT(
+                topLevelAS,
+                rayFlags,
+                0xFF,
+                0, 0, 0,
+                origin,
+                0.001,
+                sampleDir,
+                sampleDist, // Ray length reaches exactly to our sampled point
+                0
+            );
+
+            accumulatedShadow += hitValue;
+        }
+
+        // Average the results over total samples and store
+        float finalShadow = accumulatedShadow / float(pc.spp);
+        imageStore(outPointShadowMask, ivec3(pixelCoord, i), vec4(finalShadow));
     }
 }

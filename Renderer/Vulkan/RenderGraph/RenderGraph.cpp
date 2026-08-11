@@ -11,13 +11,13 @@
 namespace Render::Graph
 {
 
-    RGHandle RenderGraphBuilder::CreateTexture(const Core::TextureDesc& desc) const {
+    RGHandle RenderGraphBuilder::CreateTexture(const Core::TextureDesc& desc, bool isTransient) const {
         RGHandle handle{ static_cast<uint32_t>(m_parentGraph->m_physicalResources.size()) };
 
         RGPhysicalResource res{};
         res.textureDesc = desc;
         res.isBuffer = false;
-        res.isTransient = true; 
+        res.isTransient = isTransient; 
         res.isImported = false;
 
         m_parentGraph->m_physicalResources.push_back(res);
@@ -184,6 +184,18 @@ namespace Render::Graph
         //    Memory is reused if a resource's lifetime has expired!
         AllocatePhysicalResources(resourceManager, resourceTouchList, needed);
 
+        for (uint32_t r = 0; r < m_physicalResources.size(); ++r) {
+            auto& res = m_physicalResources[r];
+            if (!res.isTransient && !res.isImported) {
+                // If it doesn't have a physical texture yet, create it permanently!
+                if (!res.physicalTexture.IsValid() && !res.isBuffer) {
+                    res.physicalTexture = resourceManager.CreateTexture(res.textureDesc);
+                }
+                else if (!res.physicalBuffer.IsValid() && res.isBuffer) {
+                    res.physicalBuffer = resourceManager.CreateBuffer(res.bufferDesc);
+                }
+            }
+        }
         // 7. Barrier Generation: Automatically insert VkImageMemoryBarrier2 transitions between passes 
         //    based on their declared AccessTypes.
         buildBarriers(resourceManager, resourceTouchList, needed);

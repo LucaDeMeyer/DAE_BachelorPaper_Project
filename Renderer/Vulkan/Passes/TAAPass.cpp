@@ -14,7 +14,7 @@ namespace Render::Pass
         outDesc.mipLevels = 1;
         outDesc.arrayLayers = 1;
 
-        m_taaOut = builder.CreateTexture(outDesc);
+        m_taaOut = builder.CreateTexture(outDesc,true);
 
         m_depthIn = builder.FindResource("SceneDepth");
     	builder.AddDependency(m_depthIn, Graph::AccessType::ComputeShaderRead);

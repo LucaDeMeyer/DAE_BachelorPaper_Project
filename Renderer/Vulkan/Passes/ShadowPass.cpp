@@ -24,7 +24,7 @@ void Render::Pass::ShadowPass::Setup(Graph::RenderGraphBuilder& builder)
     shadowDesc.aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
     shadowDesc.arrayLayers = NUM_CASCADES;
 
-    m_shadowMap = builder.CreateTexture(shadowDesc);
+    m_shadowMap = builder.CreateTexture(shadowDesc,true);
     builder.AddDependency(m_shadowMap, Graph::AccessType::DepthWrite);
 
     for (int i = 0; i < Core::MAX_FRAMES_IN_FLIGHT; i++) {

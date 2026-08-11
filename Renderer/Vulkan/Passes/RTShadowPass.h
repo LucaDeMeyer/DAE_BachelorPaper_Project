@@ -28,6 +28,7 @@ namespace Render::Pass
                rtConfig.missShaders = { "shaders/RTShadow.rmiss.spv" };
                rtConfig.hitShaders = { "shaders/RTShadow.rchit.spv" };
                rtConfig.maxRayRecursionDepth = 1;
+               rtConfig.pushConstants = { {VK_SHADER_STAGE_RAYGEN_BIT_KHR, 0, sizeof(RenderTypes::RTPushConstants)} };
                rtConfig.descriptorLayouts = {
                    m_resourceManager->GetGlobalDescriptorSet().layout,
                    m_resourceManager->GetRTDescriptorSet().layout,

@@ -48,7 +48,7 @@ void Render::Pass::DepthPrePass::Setup(Graph::RenderGraphBuilder& builder)
     depthDesc.aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
     depthDesc.mipLevels = 1;
     depthDesc.arrayLayers = 1;
-    m_DepthTexture = builder.CreateTexture(depthDesc);
+    m_DepthTexture = builder.CreateTexture(depthDesc,true);
     builder.AddDependency(m_DepthTexture, Graph::AccessType::DepthWrite);
 }
 void Render::Pass::DepthPrePass::Execute(const RenderTypes::RenderContext& context, Render::Graph::RenderGraph& graph)

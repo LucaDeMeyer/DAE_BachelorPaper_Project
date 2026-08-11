@@ -178,12 +178,34 @@ namespace UI {
             }
         }
         ImGui::Separator();
-        if (ImGui::CollapsingHeader("Shadow Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::CollapsingHeader("Ray Tracing & Effect Modes", ImGuiTreeNodeFlags_DefaultOpen)) {
 
-            bool useRT = (*m_enableRTShadows == 1);
-            if (ImGui::Checkbox("Enable Ray Traced Shadows", &useRT)) {
-                *m_enableRTShadows = useRT ? 1 : 0;
+            const char* shadowModes[] = { "Raster Shadows", "G-Buffer Guided RT", "Unguided RT" };
+            int currentShadowMode = *m_enableRTShadows;
+            if (ImGui::Combo("Shadow Mode", &currentShadowMode, shadowModes, IM_ARRAYSIZE(shadowModes))) {
+                *m_enableRTShadows = currentShadowMode;
                 *m_graphNeedsRebuild = true;
+            }
+
+            const char* aoModes[] = { "SSAO (Raster)", "G-Buffer Guided RTAO", "Unguided RTAO" };
+            int currentAOMode = *m_RTAOMode;
+            if (ImGui::Combo("Ambient Occlusion", &currentAOMode, aoModes, IM_ARRAYSIZE(aoModes))) {
+                *m_RTAOMode = currentAOMode;
+                *m_graphNeedsRebuild = true;
+            }
+
+            const char* rtrModes[] = { "SSR (Raster)", "G-Buffer Guided RTR", "Unguided RTR" };
+            int currentRTRMode = *m_RTRMode;
+            if (ImGui::Combo("Reflections", &currentRTRMode, rtrModes, IM_ARRAYSIZE(rtrModes))) {
+                *m_RTRMode = currentRTRMode;
+                *m_graphNeedsRebuild = true;
+            }
+
+            ImGui::Separator();
+            int currentSPP = *m_ssp;
+            if (ImGui::SliderInt("RT Samples Per Pixel", &currentSPP, 1, 32)) {
+			*m_ssp = currentSPP;
+              
             }
         }
         ImGui::End();

@@ -11,7 +11,7 @@ void Render::Pass::RTPointShadowPass::Setup(Graph::RenderGraphBuilder& builder)
     maskDesc.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
     maskDesc.arrayLayers = Core::MAX_POINT_LIGHTS; 
 
-    m_shadowMaskArray = builder.CreateTexture(maskDesc);
+    m_shadowMaskArray = builder.CreateTexture(maskDesc,true);
 
     builder.AddDependency(m_shadowMaskArray, Graph::AccessType::ComputeShaderWrite);
 
@@ -46,6 +46,11 @@ void Render::Pass::RTPointShadowPass::Execute(const RenderTypes::RenderContext& 
         context.cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_pipeline->layout,
         0, static_cast<uint32_t>(boundSets.size()), boundSets.data(), 0, nullptr
     );
+    RenderTypes::RTPushConstants pushData{};
+    pushData.frameCount = context.resourceManager->GetFrameIndex();
+    pushData.spp = context.m_spp;
+    vkCmdPushConstants(context.cmd, m_pipeline->layout, VK_SHADER_STAGE_RAYGEN_BIT_KHR, 0, sizeof(RenderTypes::RTPushConstants), &pushData);
+
 
     auto pfn_vkCmdTraceRaysKHR = (PFN_vkCmdTraceRaysKHR)vkGetDeviceProcAddr(m_resourceManager->GetContext().getDevice(), "vkCmdTraceRaysKHR");
 

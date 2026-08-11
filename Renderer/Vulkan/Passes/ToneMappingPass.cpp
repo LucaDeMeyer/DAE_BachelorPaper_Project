@@ -25,7 +25,7 @@ void Render::Pass::ToneMappingPass::Setup(Graph::RenderGraphBuilder& builder)
     ldrDesc.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
     ldrDesc.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
-    m_ToneMapOut = builder.CreateTexture(ldrDesc);
+    m_ToneMapOut = builder.CreateTexture(ldrDesc,true);
     builder.AddDependency(m_ToneMapOut, Graph::AccessType::ComputeShaderWrite);
 
     Core::BufferDesc expDesc{};

@@ -33,7 +33,7 @@ void Render::Pass::PointShadowPass::Setup(Graph::RenderGraphBuilder& builder)
         desc.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
         desc.isCube = true;
         
-        auto handle = builder.CreateTexture(desc);
+        auto handle = builder.CreateTexture(desc,true);
         builder.AddDependency(handle, Graph::AccessType::DepthWrite);
         m_pointShadowMaps.push_back(handle);
     }

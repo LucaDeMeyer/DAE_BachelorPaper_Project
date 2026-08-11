@@ -24,6 +24,23 @@ layout(set = 2, binding = 1) uniform sampler2D samplerNormal;
 layout(set = 2, binding = 2) uniform sampler2D samplerMaterial;
 layout(set = 2, binding = 3, rgba16f) uniform writeonly image2D outRTR;
 
+layout(push_constant) uniform PushConsts {
+    uint frameCount;
+    uint spp;
+} pc;
+
+// --- Random Number Generator ---
+uint pcg_hash(uint seed) {
+    uint state = seed * 747796405u + 2891336453u;
+    uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
+}
+
+float rnd(inout uint seed) {
+    seed = pcg_hash(seed);
+    return float(seed) / 4294967296.0;
+}
+
 void main() 
 {
     ivec2 pixelCoord = ivec2(gl_LaunchIDEXT.xy);
@@ -41,6 +58,7 @@ void main()
     vec4 material = texture(samplerMaterial, uv);
     float roughness = material.g;
 
+    // Cutoff: Don't trace reflections for very rough surfaces to save performance
     if (roughness > 0.4) {
         imageStore(outRTR, pixelCoord, vec4(0.0));
         return;
@@ -51,34 +69,65 @@ void main()
     vec3 viewPos = (camera.invView * vec4(0, 0, 0, 1)).xyz;
     vec3 viewDir = normalize(worldPos - viewPos);
 
-    // Calculate Reflection Ray
+    // Calculate Perfect Reflection Ray
     vec3 reflectDir = normalize(reflect(viewDir, normal));
-
-  
     vec3 origin = worldPos + (normal * 0.001);
 
     uint rayFlags = gl_RayFlagsOpaqueEXT;
     float tMin = 0.01;
     float tMax = 1000.0; 
 
-  hitValue = vec4(vec3(0.0), 1.0);
+    // --- SPP ACCUMULATOR ---
+    vec3 accumulatedColor = vec3(0.0);
 
-    traceRayEXT(
-        topLevelAS,    
-        rayFlags,      
-        0xFF,          
-        0,             // sbtRecordOffset
-        0,             // sbtRecordStride
-        0,             // missIndex
-        origin,        
-        tMin,          
-        reflectDir,      
-        tMax,          
-        0              // payloadLocation
-    );
+    for (uint i = 0; i < pc.spp; ++i) {
+        // Create a unique seed combining pixel, frame, and sample index
+        uint seed = pixelCoord.x + pixelCoord.y * uint(resolution.x) + pc.frameCount * 719393 + i * 1337;
 
+        // Generate a random vector inside a sphere to jitter the reflection
+        vec3 jitter = vec3(
+            rnd(seed) * 2.0 - 1.0, 
+            rnd(seed) * 2.0 - 1.0, 
+            rnd(seed) * 2.0 - 1.0
+        );
+
+        // Scale the jitter spread by the surface roughness (0.0 = perfect mirror)
+        jitter = normalize(jitter) * rnd(seed) * roughness;
+        vec3 sampleDir = normalize(reflectDir + jitter);
+
+        // Safety check: Jittering can sometimes push the ray into the surface.
+        // If the ray points below the normal, clamp it back to the perfect reflection.
+        if (dot(sampleDir, normal) <= 0.01) {
+            sampleDir = reflectDir;
+        }
+
+        // Reset hitValue for every new ray in the loop
+        hitValue = vec4(0.0, 0.0, 0.0, 1.0);
+
+        traceRayEXT(
+            topLevelAS,    
+            rayFlags,      
+            0xFF,          
+            0,             // sbtRecordOffset
+            0,             // sbtRecordStride
+            0,             // missIndex
+            origin,        
+            tMin,          
+            sampleDir,     
+            tMax,          
+            0              // payloadLocation
+        );
+
+        // Add this sample's color to the total
+        accumulatedColor += hitValue.rgb;
+    }
+
+    // Average the accumulated color by the number of samples
+    vec3 finalReflection = accumulatedColor / float(pc.spp);
+
+    // Fade out reflections as they approach the roughness cutoff threshold
     float roughnessFade = 1.0 - smoothstep(0.2, 0.4, roughness);
-    hitValue.rgb *= roughnessFade;
+    finalReflection *= roughnessFade;
 
-    imageStore(outRTR, pixelCoord, vec4(hitValue.rgb, 1.0));
+    imageStore(outRTR, pixelCoord, vec4(finalReflection, 1.0));
 }

@@ -18,6 +18,9 @@
 #include "Vulkan/Passes/RTPointShadowPass.h"
 #include "Vulkan/Passes/RTRPass.h"
 #include "Vulkan/Passes/RTShadowPass.h"
+#include "Vulkan/Passes/RTUnguidedAOPass.h"
+#include "Vulkan/Passes/RTUnguidedRTRPass.h"
+#include "Vulkan/Passes/RTUnguidedShadowPass.h"
 #include "Vulkan/Passes/SSAOPass.h"
 #include "Vulkan/Passes/SSRPass.h"
 #include "Vulkan/Passes/SVGFSpatialPass.h"
@@ -85,6 +88,7 @@ void Renderer::initVulkan() {
 		.addDeviceExtension(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME)
 		.addDeviceExtension(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME)
         .addDeviceExtension(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME)
+		.addDeviceExtension(VK_KHR_RAY_QUERY_EXTENSION_NAME)
         .build();
 
     int width, height;
@@ -111,7 +115,6 @@ void Renderer::initVulkan() {
     m_iblTextures = m_IBLBaker->BakeEnvironment("textures/circus_arena_4k.hdr");
 
     resourceManager->InitGlobalBuffers();
-    //resourceManager->InitGlobalDescriptorSet();
 }
 
 void Renderer::SetupScene(Core::Scene* scene, const std::vector<Core::Mesh>& meshes) {
@@ -136,7 +139,6 @@ void Renderer::SetupScene(Core::Scene* scene, const std::vector<Core::Mesh>& mes
     std::vector<RenderTypes::InstanceData> rtInstances;
     for (size_t i = 0; i < scene->GetObjects().size(); i++) {
         RenderTypes::InstanceData instData{};
-        // Link to the material index we saved during Mesh::UpLoadToGPU
         instData.materialID = scene->GetObjects()[i].mesh->materialIndex;
         instData.firstIndex = scene->GetObjects()[i].mesh->firstIndex;
         instData.vertexOffset = scene->GetObjects()[i].mesh->vertexOffset;
@@ -215,6 +217,36 @@ void Renderer::SetupScene(Core::Scene* scene, const std::vector<Core::Mesh>& mes
     m_rtaoHistory[0] = resourceManager->CreateTexture(rtaoDesc);
     m_rtaoHistory[1] = resourceManager->CreateTexture(rtaoDesc);
 
+    for (int i = 0; i < 2; i++) {
+        if (m_pointShadowHistory[i].IsValid()) {
+            resourceManager->DestroyTexture(m_pointShadowHistory[i]);
+        }
+    }
+
+    Core::TextureDesc psHistoryDesc = taaDesc;
+    psHistoryDesc.name = "PointShadow_History";
+    psHistoryDesc.arrayLayers = Core::MAX_POINT_LIGHTS; 
+    m_pointShadowHistory[0] = resourceManager->CreateTexture(psHistoryDesc);
+    m_pointShadowHistory[1] = resourceManager->CreateTexture(psHistoryDesc);
+
+    for (int i = 0; i < 2; i++) {
+        if (m_shadowHistory[i].IsValid()) {
+            resourceManager->DestroyTexture(m_shadowHistory[i]);
+        }
+    }
+
+    Core::TextureDesc shadowHistDesc{};
+    shadowHistDesc.name = "RT_Shadow_History";
+    shadowHistDesc.extent = { swapchain->extent.width, swapchain->extent.height, 1 };
+    shadowHistDesc.format = VK_FORMAT_R16G16B16A16_SFLOAT; // Matches SVGF format!
+    shadowHistDesc.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    shadowHistDesc.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    shadowHistDesc.mipLevels = 1;
+    shadowHistDesc.arrayLayers = 1;
+
+    m_shadowHistory[0] = resourceManager->CreateTexture(shadowHistDesc);
+    m_shadowHistory[1] = resourceManager->CreateTexture(shadowHistDesc);
+
     BuildRenderGraph(scene);
     renderGraph->InitProfiling(context->getDevice(), context->getPhysicalDevice(), Core::MAX_FRAMES_IN_FLIGHT);
 }
@@ -236,7 +268,7 @@ void Renderer::BuildRenderGraph(Core::Scene* scene)
             renderGraph->RegisterImportedImage(
                 swapchain->images[i],
                 swapchain->format,
-                ext,VK_IMAGE_LAYOUT_UNDEFINED
+                ext, VK_IMAGE_LAYOUT_UNDEFINED
             );
     }
 
@@ -276,6 +308,28 @@ void Renderer::BuildRenderGraph(Core::Scene* scene)
     );
 
 
+    Core::ImageBuilder::Image* psImg0 = resourceManager->GetTexture(m_pointShadowHistory[0]);
+    Core::ImageBuilder::Image* psImg1 = resourceManager->GetTexture(m_pointShadowHistory[1]);
+    VkExtent3D extPS = { psImg0->extent.width, psImg0->extent.height, 1 };
+
+    Render::Graph::RGHandle rgPSHistory0 = renderGraph->RegisterImportedImage(
+        psImg0->image, psImg0->format, extPS, VK_IMAGE_LAYOUT_UNDEFINED
+    );
+    Render::Graph::RGHandle rgPSHistory1 = renderGraph->RegisterImportedImage(
+        psImg1->image, psImg1->format, extPS, VK_IMAGE_LAYOUT_UNDEFINED
+    );
+
+    Core::ImageBuilder::Image* shadowImg0 = resourceManager->GetTexture(m_shadowHistory[0]);
+    Core::ImageBuilder::Image* shadowImg1 = resourceManager->GetTexture(m_shadowHistory[1]);
+    VkExtent3D extShadow = { shadowImg0->extent.width, shadowImg0->extent.height, 1 };
+
+    Render::Graph::RGHandle rgShadowHistory0 = renderGraph->RegisterImportedImage(
+        shadowImg0->image, shadowImg0->format, extShadow, VK_IMAGE_LAYOUT_UNDEFINED
+    );
+    Render::Graph::RGHandle rgShadowHistory1 = renderGraph->RegisterImportedImage(
+        shadowImg1->image, shadowImg1->format, extShadow, VK_IMAGE_LAYOUT_UNDEFINED
+    );
+
     Core::ImageBuilder::Image* envImage = resourceManager->GetTexture(m_iblTextures.environmentCubemap);
     Core::ImageBuilder::Image* irrImage = resourceManager->GetTexture(m_iblTextures.irradianceCubemap);
     Core::ImageBuilder::Image* prefilterImage = resourceManager->GetTexture(m_iblTextures.prefilteredCubemap);
@@ -306,15 +360,7 @@ void Renderer::BuildRenderGraph(Core::Scene* scene)
         { brdfimage->extent.width, brdfimage->extent.height, 1 }, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     );
 
-    auto& shadowPass = renderGraph->AddPass<Render::Pass::ShadowPass>(
-        "Shadow Pass",
-        resourceManager.get(),
-        scene);
 
-    auto& pointShadowPass = renderGraph->AddPass<Render::Pass::PointShadowPass>(
-        "Point-Shadow Pass",
-        resourceManager.get(),
-        scene);
 
     auto& depthPrePass = renderGraph->AddPass<Render::Pass::DepthPrePass>(
         "Depth Pre Pass",
@@ -329,36 +375,100 @@ void Renderer::BuildRenderGraph(Core::Scene* scene)
         resourceManager.get(),
         scene
     );
- 
-    auto& ssaoPass = renderGraph->AddPass<Render::Pass::SSAOPass>(
-        "SSAO Pass",
-        swapchain->extent,
-        resourceManager.get(),
-        scene);
 
 
 
-        auto& RTShadowPass = renderGraph->AddPass<Render::Pass::RTShadowPass>("RT Shadow Pass", resourceManager.get(), swapchain->extent);
-        auto& RTPointShadowPass = renderGraph->AddPass<Render::Pass::RTPointShadowPass>("RT Point Shadow Pass", resourceManager.get(), swapchain->extent);
-       
-        auto& rtrPass = renderGraph->AddPass<Render::Pass::RTRPass>("RTR Pass", resourceManager.get(), swapchain->extent);
-
-        auto& rtrTemporal = renderGraph->AddPass<Render::Pass::SVGFTemporalPass>(
-            "SVGF Temporal RTR", resourceManager.get(), swapchain->extent,
-            rgSvgfHistory0, rgSvgfHistory1, m_svgfHistory[0], m_svgfHistory[1],
-            "RT_ReflectionOutput", "SVGF_RTR_Temporal_Out", 0 // isRTAO = 0
+    if (m_RTShadowMode == 1) {
+        auto& RTShadowPass = renderGraph->AddPass<Render::Pass::RTShadowPass>(
+            "RT Shadow Pass", resourceManager.get(), swapchain->extent
         );
 
-        auto& rtrSpatial1 = renderGraph->AddPass<Render::Pass::SVGFSpatialPass>(
-            "SVGF Spatial RTR 1", resourceManager.get(), swapchain->extent,
-            "SVGF_RTR_Temporal_Out", "SVGF_RTR_Spatial_Out_1", 1, 0 // Step 1, isRTAO 0
+        // 2. SVGF Temporal
+        auto& shadowTemporal = renderGraph->AddPass<Render::Pass::SVGFTemporalPass>(
+            "SVGF Temporal Shadows", resourceManager.get(), swapchain->extent,
+            rgShadowHistory0, rgShadowHistory1, m_shadowHistory[0], m_shadowHistory[1],
+            "RT_ShadowMask", "SVGF_Shadow_Temporal_Out", 2 // unique ID for shadows
         );
 
-        auto& rtrSpatial2 = renderGraph->AddPass<Render::Pass::SVGFSpatialPass>(
-            "SVGF Spatial RTR 2", resourceManager.get(), swapchain->extent,
-            "SVGF_RTR_Spatial_Out_1", "SVGF_RTR_Final", 2, 0 // Step 2, isRTAO 0
+        // 3. SVGF Spatial 1
+        auto& shadowSpatial1 = renderGraph->AddPass<Render::Pass::SVGFSpatialPass>(
+            "SVGF Spatial Shadows 1", resourceManager.get(), swapchain->extent,
+            "SVGF_Shadow_Temporal_Out", "SVGF_Shadow_Spatial_Out_1", 1, 2
         );
 
+        // 4. SVGF Spatial 2
+        auto& shadowSpatial2 = renderGraph->AddPass<Render::Pass::SVGFSpatialPass>(
+            "SVGF Spatial Shadows 2", resourceManager.get(), swapchain->extent,
+            "SVGF_Shadow_Spatial_Out_1", "SVGF_Shadow_Final", 2, 2
+        );
+
+
+        auto& RTPointShadowPass = renderGraph->AddPass<Render::Pass::RTPointShadowPass>(
+            "RT Point Shadow Pass", resourceManager.get(), swapchain->extent
+        );
+        //TODO : add SVGF loop for 2D image array
+
+        // SVGF Loop for Point Shadows
+      //  auto& psTemporal = renderGraph->AddPass<Render::Pass::SVGFTemporalPass>(
+      //      "SVGF Temporal Point Shadows", resourceManager.get(), swapchain->extent,
+      //      rgPSHistory0, rgPSHistory1, m_pointShadowHistory[0], m_pointShadowHistory[1],
+      //      "RT_PointShadowMask", "SVGF_PointShadow_Temporal_Out", 2 // Pass a unique ID for Shadows (e.g., 2)
+      //  );
+      //
+      //  auto& psSpatial1 = renderGraph->AddPass<Render::Pass::SVGFSpatialPass>(
+      //      "SVGF Spatial Point Shadows 1", resourceManager.get(), swapchain->extent,
+      //      "SVGF_PointShadow_Temporal_Out", "SVGF_PointShadow_Spatial_Out_1", 1, 2
+      //  );
+      //
+      //  auto& psSpatial2 = renderGraph->AddPass<Render::Pass::SVGFSpatialPass>(
+      //      "SVGF Spatial Point Shadows 2", resourceManager.get(), swapchain->extent,
+      //      "SVGF_PointShadow_Spatial_Out_1", "SVGF_PointShadow_Final", 2, 2
+      //  );
+    }
+    else if (m_RTShadowMode == 2) {
+        auto& unguidedShadowPass = renderGraph->AddPass<Render::Pass::UnguidedShadowPass>(
+            "Unguided RT Shadow Pass", resourceManager.get(), swapchain->extent
+        );
+
+        // 2. SVGF Temporal
+        auto& shadowTemporal = renderGraph->AddPass<Render::Pass::SVGFTemporalPass>(
+            "SVGF Temporal Shadows", resourceManager.get(), swapchain->extent,
+            rgShadowHistory0, rgShadowHistory1, m_shadowHistory[0], m_shadowHistory[1],
+            "RT_ShadowMask", "SVGF_Shadow_Temporal_Out", 2 // Mode 2 for Shadows
+        );
+
+        // 3. SVGF Spatial 1
+        auto& shadowSpatial1 = renderGraph->AddPass<Render::Pass::SVGFSpatialPass>(
+            "SVGF Spatial Shadows 1", resourceManager.get(), swapchain->extent,
+            "SVGF_Shadow_Temporal_Out", "SVGF_Shadow_Spatial_Out_1", 1, 2
+        );
+
+        // 4. SVGF Spatial 2
+        auto& shadowSpatial2 = renderGraph->AddPass<Render::Pass::SVGFSpatialPass>(
+            "SVGF Spatial Shadows 2", resourceManager.get(), swapchain->extent,
+            "SVGF_Shadow_Spatial_Out_1", "SVGF_Shadow_Final", 2, 2
+        );
+
+
+        auto& pointShadowPass = renderGraph->AddPass<Render::Pass::PointShadowPass>(
+            "Point-Shadow Pass",
+            resourceManager.get(),
+            scene);
+
+    }
+    else {
+        auto& shadowPass = renderGraph->AddPass<Render::Pass::ShadowPass>(
+            "Shadow Pass", resourceManager.get(), scene
+        );
+
+        auto& pointShadowPass = renderGraph->AddPass<Render::Pass::PointShadowPass>(
+            "Point-Shadow Pass",
+            resourceManager.get(),
+            scene);
+    }
+
+    if (m_RTAOMode == 1)
+    {
         auto& RTAOPass = renderGraph->AddPass<Render::Pass::RTAOPass>("RT AO Pass", resourceManager.get(), swapchain->extent);
 
         auto& rtaoTemporal = renderGraph->AddPass<Render::Pass::SVGFTemporalPass>(
@@ -376,22 +486,97 @@ void Renderer::BuildRenderGraph(Core::Scene* scene)
             "SVGF Spatial RTAO 2", resourceManager.get(), swapchain->extent,
             "SVGF_RTAO_Spatial_Out_1", "SVGF_RTAO_Final", 2, 1 // Step 2, isRTAO 1
         );
-  
+    }
+    else if (m_RTAOMode == 2)
+    {
+        auto& unguidedRTAOPass = renderGraph->AddPass<Render::Pass::UnguidedRTAOPass>("Unguided RTAO Pass", resourceManager.get(), swapchain->extent);
 
-    auto& ssrPass = renderGraph->AddPass<Render::Pass::SSRPass>(
-        "SSR Pass",
-        swapchain->extent,
-        resourceManager.get(),
-        rgTaaHistory0,
-        rgTaaHistory1,
-        m_taaHistory[0],
-        m_taaHistory[1]
-    );
+        auto& rtaoTemporal = renderGraph->AddPass<Render::Pass::SVGFTemporalPass>(
+            "SVGF Temporal RTAO", resourceManager.get(), swapchain->extent,
+            rgRtaoHistory0, rgRtaoHistory1, m_rtaoHistory[0], m_rtaoHistory[1],
+            "RT_AOMask", "SVGF_RTAO_Temporal_Out", 1 // isRTAO = 1
+        );
+
+        auto& rtaoSpatial1 = renderGraph->AddPass<Render::Pass::SVGFSpatialPass>(
+            "SVGF Spatial RTAO 1", resourceManager.get(), swapchain->extent,
+            "SVGF_RTAO_Temporal_Out", "SVGF_RTAO_Spatial_Out_1", 1, 1
+        );
+
+        auto& rtaoSpatial2 = renderGraph->AddPass<Render::Pass::SVGFSpatialPass>(
+            "SVGF Spatial RTAO 2", resourceManager.get(), swapchain->extent,
+            "SVGF_RTAO_Spatial_Out_1", "SVGF_RTAO_Final", 2, 1
+        );
+    }
+    else
+    {
+        auto& ssaoPass = renderGraph->AddPass<Render::Pass::SSAOPass>(
+            "SSAO Pass",
+            swapchain->extent,
+            resourceManager.get(),
+            scene);
+
+    }
+
+    if (m_RTRMode == 1)
+    {
+        auto& rtrPass = renderGraph->AddPass<Render::Pass::RTRPass>("RTR Pass", resourceManager.get(), swapchain->extent);
+
+        auto& rtrTemporal = renderGraph->AddPass<Render::Pass::SVGFTemporalPass>(
+            "SVGF Temporal RTR", resourceManager.get(), swapchain->extent,
+            rgSvgfHistory0, rgSvgfHistory1, m_svgfHistory[0], m_svgfHistory[1],
+            "RT_ReflectionOutput", "SVGF_RTR_Temporal_Out", 0 
+        );
+
+        auto& rtrSpatial1 = renderGraph->AddPass<Render::Pass::SVGFSpatialPass>(
+            "SVGF Spatial RTR 1", resourceManager.get(), swapchain->extent,
+            "SVGF_RTR_Temporal_Out", "SVGF_RTR_Spatial_Out_1", 1, 0 
+        );
+
+        auto& rtrSpatial2 = renderGraph->AddPass<Render::Pass::SVGFSpatialPass>(
+            "SVGF Spatial RTR 2", resourceManager.get(), swapchain->extent,
+            "SVGF_RTR_Spatial_Out_1", "SVGF_RTR_Final", 2, 0 
+        );
+    }
+    else if (m_RTRMode == 2)
+    {
+        auto& unguidedRTRPass = renderGraph->AddPass<Render::Pass::UnguidedRTRPass>("Unguided RTR Pass", resourceManager.get(), swapchain->extent);
+
+        auto& rtrTemporal = renderGraph->AddPass<Render::Pass::SVGFTemporalPass>(
+            "SVGF Temporal RTR", resourceManager.get(), swapchain->extent,
+            rgSvgfHistory0, rgSvgfHistory1, m_svgfHistory[0], m_svgfHistory[1],
+            "RT_ReflectionOutput", "SVGF_RTR_Temporal_Out", 0
+        );
+
+        auto& rtrSpatial1 = renderGraph->AddPass<Render::Pass::SVGFSpatialPass>(
+            "SVGF Spatial RTR 1", resourceManager.get(), swapchain->extent,
+            "SVGF_RTR_Temporal_Out", "SVGF_RTR_Spatial_Out_1", 1, 0
+        );
+
+        auto& rtrSpatial2 = renderGraph->AddPass<Render::Pass::SVGFSpatialPass>(
+            "SVGF Spatial RTR 2", resourceManager.get(), swapchain->extent,
+            "SVGF_RTR_Spatial_Out_1", "SVGF_RTR_Final", 2, 0
+        );
+    }
+    else
+    {
+
+        auto& ssrPass = renderGraph->AddPass<Render::Pass::SSRPass>(
+            "SSR Pass",
+            swapchain->extent,
+            resourceManager.get(),
+            rgTaaHistory0,
+            rgTaaHistory1,
+            m_taaHistory[0],
+            m_taaHistory[1]
+        );
+    }
+
+
 
     auto& lightingPass = renderGraph->AddPass<Render::Pass::DefferdLightingPass>("Deffered lighting pass",
         swapchain->extent,
         resourceManager.get(),
-        scene, rgEnvMap, rgIrrMap, prefiltermap, brdfMap, m_iblTextures.environmentCubemap, m_iblTextures.irradianceCubemap, m_iblTextures.prefilteredCubemap, m_iblTextures.brdfLUT,m_RTShadowMode);
+        scene, rgEnvMap, rgIrrMap, prefiltermap, brdfMap, m_iblTextures.environmentCubemap, m_iblTextures.irradianceCubemap, m_iblTextures.prefilteredCubemap, m_iblTextures.brdfLUT);
 
 
     auto& histogramPass = renderGraph->AddPass<Render::Pass::HistogramPass>("Histogram Pass",
@@ -519,7 +704,7 @@ void Renderer::drawFrame(Core::Scene* scene, Core::Camera* camera, bool uiModeAc
     rendercontext.debugViewMode = m_debugView;
     rendercontext.cameraSettings = m_CameraSettings;
     rendercontext.m_enableRTShadows = m_RTShadowMode;
-
+    rendercontext.m_spp = m_rtSPP;
     renderGraph->Execute(rendercontext);
 
    

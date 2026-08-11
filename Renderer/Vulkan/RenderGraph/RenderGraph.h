@@ -40,7 +40,7 @@ namespace Render::Graph
 
         /// @brief Declares a new virtual texture that the graph will manage.
         /// @return A virtual handle to the texture.
-        [[nodiscard]] RGHandle CreateTexture(const Core::TextureDesc& desc) const;
+        [[nodiscard]] RGHandle CreateTexture(const Core::TextureDesc& desc, bool isTransient = true) const;
 
         /// @brief Declares a new virtual buffer that the graph will manage.
         /// @return A virtual handle to the buffer.
