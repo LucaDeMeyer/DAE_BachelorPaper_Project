@@ -83,6 +83,8 @@ namespace Render::Pass
 
         Graph::RGHandle GetLightingOut() const { return m_LightingOut; }
 
+        int m_usePostDenoising = 0;
+
     private:
         Graph::RGHandle m_LightingOut;
         Render::Graph::RGHandle m_Albedo;

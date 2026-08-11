@@ -180,6 +180,14 @@ namespace UI {
         ImGui::Separator();
         if (ImGui::CollapsingHeader("Ray Tracing & Effect Modes", ImGuiTreeNodeFlags_DefaultOpen)) {
 
+
+            bool isPost = *m_usePostDenoising;
+            if (ImGui::Checkbox("Use Unified Post-Lighting Denoising", &isPost)) {
+                *m_usePostDenoising = isPost;
+                *m_graphNeedsRebuild = true;
+            }
+            ImGui::Separator();
+
             const char* shadowModes[] = { "Raster Shadows", "G-Buffer Guided RT", "Unguided RT" };
             int currentShadowMode = *m_enableRTShadows;
             if (ImGui::Combo("Shadow Mode", &currentShadowMode, shadowModes, IM_ARRAYSIZE(shadowModes))) {

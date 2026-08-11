@@ -40,8 +40,7 @@ void main() {
     const vec2 UV = (vec2(pixelCoord) + 0.5) / resolution;
     
     vec2 ndc = UV * 2.0 - 1.0;
-    ndc.y = -ndc.y;
-
+   
     vec4 originClip = vec4(ndc, 0.0, 1.0);
     vec4 targetClip = vec4(ndc, 1.0, 1.0);
 

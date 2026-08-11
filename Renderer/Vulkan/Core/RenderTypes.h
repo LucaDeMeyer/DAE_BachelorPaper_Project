@@ -95,6 +95,7 @@ namespace RenderTypes
         int m_enableRTShadows;
         uint32_t m_spp;
         uint32_t m_aoSPP;
+        uint32_t m_usePostDenoising;
     };
 
     /// @brief Global View/Projection matrices (Aligned to GLSL std140).
@@ -170,6 +171,7 @@ namespace RenderTypes
     {
         int debugMode;
         int useRTShadows;
+        int usePostDenoising;
     };
 
     struct GPUMaterial {

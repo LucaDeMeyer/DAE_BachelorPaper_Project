@@ -18,7 +18,7 @@ namespace Render::Pass
 
         m_depthIn = builder.FindResource("SceneDepth");
     	builder.AddDependency(m_depthIn, Graph::AccessType::ComputeShaderRead);
-        m_lightingIn = builder.FindResource("LightingOut");
+        m_lightingIn = builder.FindResource(m_inputname);
         builder.AddDependency(m_lightingIn, Graph::AccessType::ComputeShaderRead);
         m_velocityIn = builder.FindResource("VelocityMap");
         builder.AddDependency(m_velocityIn, Graph::AccessType::ComputeShaderRead);

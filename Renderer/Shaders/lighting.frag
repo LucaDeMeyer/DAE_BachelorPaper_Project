@@ -51,6 +51,7 @@ layout(set = 0, binding = 3) readonly buffer LightData {
  layout(push_constant) uniform DebugPushConstBlock {
    int debugMode;
    int useRTShadows;
+   int usePostDenoising;
 }debugPushConst;
 
 layout(set = 1, binding = 0) uniform sampler2D samplerAlbedo;
@@ -337,7 +338,13 @@ void main()
 
     vec3 ambient = (kD_IBL * diffuseIBL + specularIBL) * occlusion;
 
-    vec3 color = Lo + ambient;
-  
-    outColor = vec4(color, 1.0);
+   vec3 color = Lo + ambient;
+
+    if (debugPushConst.usePostDenoising == 1) {
+     
+        vec3 demodulatedLighting = color / max(albedo.rgb, vec3(0.005));
+        outColor = vec4(demodulatedLighting, 1.0); 
+    } else {
+        outColor = vec4(color, 1.0);
+    }
 }

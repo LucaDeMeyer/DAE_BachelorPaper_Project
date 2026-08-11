@@ -22,10 +22,10 @@ namespace Render::Pass
     public:
         TAAPass(const std::string& name, VkExtent2D extent, Core::ResourceManager* resManager,
             Graph::RGHandle history0, Graph::RGHandle history1,
-            Core::TextureHandle histTex0, Core::TextureHandle histTex1) // <-- ADD THESE
+            Core::TextureHandle histTex0, Core::TextureHandle histTex1,const std::string& input)
             : Pass(name), m_extent(extent), m_resourceManager(resManager),
             m_history0(history0), m_history1(history1),
-            m_histTex0(histTex0), m_histTex1(histTex1)
+            m_histTex0(histTex0), m_histTex1(histTex1), m_inputname(input)
         {
             Core::DescriptorBuilder builder(resManager->GetContext());
             m_descriptors = builder
@@ -77,6 +77,8 @@ namespace Render::Pass
 
         Core::TextureHandle m_histTex0;
         Core::TextureHandle m_histTex1;
+
+        std::string m_inputname;
     };
 }
 #endif

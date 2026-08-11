@@ -15,8 +15,12 @@ void Render::Pass::SVGFTemporalPass::Setup(Graph::RenderGraphBuilder& builder)
     m_Normal = builder.FindResource("GBuffer_Normal");
     builder.AddDependency(m_Normal, Graph::AccessType::ComputeShaderRead);
 
-    m_Material = builder.FindResource("GBuffer_Material");
-    builder.AddDependency(m_Material, Graph::AccessType::ComputeShaderRead);
+    if (m_isRTAO == 3) {
+        m_Material = builder.FindResource("GBuffer_Albedo");
+    }
+    else {
+        m_Material = builder.FindResource("GBuffer_Material");
+    }
 
     Core::TextureDesc outDesc{};
     outDesc.name = m_outputName; 

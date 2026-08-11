@@ -85,6 +85,9 @@ public:
 
     int* GetRTSPP() { return &m_rtSPP; }
     int* GetAOSPP() { return &m_aoSPP; }
+
+    int* GetUsePostDenoising()  { return &m_usePostDenoising; }
+
     /// @brief Retrieves a pointer to the physical camera settings (Aperture, Shutter Speed, ISO).
     RenderTypes::PhysicalCameraSettings* GetCameraSettings() { return &m_CameraSettings; }
     /// @brief Retrieves a pointer to the Render Graph rebuild flag.
@@ -143,6 +146,8 @@ private:
     int m_RTShadowMode = 0;
     int m_RTRMode = 0;
     int m_RTAOMode = 0;
+    int m_usePostDenoising = 0;
+
     bool m_graphNeedsRebuild = false;
     RenderTypes::PhysicalCameraSettings m_CameraSettings;
 
@@ -158,6 +163,8 @@ private:
     Core::TextureHandle m_rtaoHistory[2];
     Core::TextureHandle m_pointShadowHistory[2];
     Core::TextureHandle m_shadowHistory[2];
+    Core::TextureHandle m_postSvgfHistory[2];
+
     uint32_t m_absoluteFrameCount = 0;
 
     int m_rtSPP = 1;

@@ -15,13 +15,13 @@ layout(set = 0, binding = 0) uniform CameraUBO {
 layout(set = 1, binding = 0) uniform sampler2DArray samplerInput;
 layout(set = 1, binding = 1) uniform sampler2D samplerDepth;
 layout(set = 1, binding = 2) uniform sampler2D samplerNormal;
-layout(set = 1, binding = 3) uniform sampler2D samplerMaterial; // Unused but bound
+layout(set = 1, binding = 3) uniform sampler2D samplerMaterial;
 layout(set = 1, binding = 4) uniform sampler2DArray samplerHistory;
 layout(set = 1, binding = 5, rgba16f) uniform writeonly image2DArray outHistory;
 layout(set = 1, binding = 6, rgba16f) uniform writeonly image2DArray outGraph;
 
 layout(push_constant) uniform Constants {
-    int isRTAO; // Kept to match C++ struct size, but ignored
+    int isRTAO;
 } pc;
 
 vec3 ReconstructWorldPos(vec2 uv, float depth, mat4 invViewProj) {

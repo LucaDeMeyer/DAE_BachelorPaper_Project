@@ -86,8 +86,14 @@ void main() {
         return;
     }
 
-    vec3  finalColor    = sumColor / sumWeight;
+    vec3 finalColor = sumColor / sumWeight;
     float finalVariance = sumVariance / (sumWeight * sumWeight);
+
+   
+    if (pc.isRTAO == 3 && pc.stepSize == 2) {
+        vec3 albedo = texture(samplerMaterial, uv).rgb;
+        finalColor *= albedo;
+    }
 
     imageStore(outGraph, pixelCoord, vec4(finalColor, finalVariance));
 }
