@@ -455,10 +455,9 @@ void Renderer::BuildRenderGraph(Core::Scene* scene)
         );
 
 
-        auto& pointShadowPass = renderGraph->AddPass<Render::Pass::PointShadowPass>(
-            "Point-Shadow Pass",
-            resourceManager.get(),
-            scene);
+        auto& RTPointShadowPass = renderGraph->AddPass<Render::Pass::RTPointShadowPass>(
+            "RT Point Shadow Pass", resourceManager.get(), swapchain->extent
+        );
 
     }
     else {

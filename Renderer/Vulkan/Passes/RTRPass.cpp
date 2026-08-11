@@ -36,7 +36,7 @@ void Render::Pass::RTRPass::Execute(const RenderTypes::RenderContext& context, R
     auto* vertexBuffer = context.resourceManager->GetGlobalVertexBuffer();
     auto* indexBuffer = context.resourceManager->GetGlobalIndexBuffer();
 
-    Core::DescriptorWriter writer;
+    Core::DescriptorWriter writer; 
     writer.writeImage(0, depthImage->view, context.resourceManager->GetLinearSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
         .writeImage(1, normalImage->view, context.resourceManager->GetLinearSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
         .writeImage(2, materialImage->view, context.resourceManager->GetLinearSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)

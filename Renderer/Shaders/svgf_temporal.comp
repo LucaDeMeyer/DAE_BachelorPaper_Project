@@ -91,7 +91,7 @@ void main() {
         }
     }
     float alpha;
-    if (pc.isRTAO == 1) {
+    if (pc.isRTAO == 1 || pc.isRTAO == 2) {
         alpha = validHistory ? 0.05 : 1.0;
     } else {
         if (roughness > 0.4) {

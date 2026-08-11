@@ -103,13 +103,12 @@ void main()
     vec3 L = normalize(-L_dir);
     float NdotL = max(dot(worldNormal, L), 0.0); 
 
-    // --- NEW: INLINE SHADOW RAY ---
+  
     float shadowFactor = 1.0;
-    
-    // Only cast a shadow ray if the surface actually faces the sun
+  
     if (NdotL > 0.0) {
         vec3 hitPos = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
-        vec3 shadowOrigin = hitPos + (worldNormal * 0.01); // Bias to prevent self-shadowing
+        vec3 shadowOrigin = hitPos + (worldNormal * 0.01); 
 
         rayQueryEXT shadowQuery;
         rayQueryInitializeEXT(
@@ -126,14 +125,13 @@ void main()
         while (rayQueryProceedEXT(shadowQuery)) {}
 
         if (rayQueryGetIntersectionTypeEXT(shadowQuery, true) != gl_RayQueryCommittedIntersectionNoneEXT) {
-            shadowFactor = 0.0; // We hit something, the sun is blocked!
+            shadowFactor = 0.0; 
         }
     }
     
     vec3 radiance = sceneLights.dirLight.color.rgb * sceneLights.dirLight.direction.w;
     if (length(radiance) < 0.001) radiance = vec3(5.0); 
 
-    // Multiply the radiance by our new shadowFactor
     vec3 finalColor = albedo * ((radiance * NdotL * shadowFactor) + vec3(0.15));
 
     float maxSafeHDR = 100.0; 

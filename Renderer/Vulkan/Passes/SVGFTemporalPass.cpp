@@ -6,9 +6,8 @@ void Render::Pass::SVGFTemporalPass::Setup(Graph::RenderGraphBuilder& builder)
     m_inputHandle = builder.FindResource(m_inputName);
     builder.AddDependency(m_inputHandle, Graph::AccessType::ComputeShaderRead);
 
-  
-    builder.AddDependency(m_history0, Graph::AccessType::ComputeShaderRead);
-    builder.AddDependency(m_history1, Graph::AccessType::ComputeShaderRead);
+    builder.AddDependency(m_history0, Graph::AccessType::ReadWrite);
+    builder.AddDependency(m_history1, Graph::AccessType::ReadWrite);
 
     m_Depth = builder.FindResource("SceneDepth");
     builder.AddDependency(m_Depth, Graph::AccessType::ComputeShaderRead);
@@ -28,7 +27,7 @@ void Render::Pass::SVGFTemporalPass::Setup(Graph::RenderGraphBuilder& builder)
     outDesc.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     outDesc.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
 
-    m_output = builder.CreateTexture(outDesc,true);
+    m_output = builder.CreateTexture(outDesc,false);
     builder.AddDependency(m_output, Graph::AccessType::ComputeShaderWrite);
 }
 
@@ -47,13 +46,7 @@ void Render::Pass::SVGFTemporalPass::Execute(const RenderTypes::RenderContext& c
     auto* readHistory = context.resourceManager->GetTexture(pingpong ? m_physHistory1 : m_physHistory0);
     auto* writeHistory = context.resourceManager->GetTexture(pingpong ? m_physHistory0 : m_physHistory1);
 
-    // Transition writeHistory to GENERAL layout
-    Utils::TransitionImageLayout(
-        context.cmd, writeHistory->image,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL,
-        VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_SHADER_WRITE_BIT,
-        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
-    );
+
 
     VkSampler sampler = context.resourceManager->GetLinearSampler();
 
@@ -62,7 +55,7 @@ void Render::Pass::SVGFTemporalPass::Execute(const RenderTypes::RenderContext& c
         .writeImage(1, depthImage->view, sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
         .writeImage(2, normalImage->view, sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
         .writeImage(3, materialImage->view, sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-        .writeImage(4, readHistory->view, sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+        .writeImage(4, readHistory->view, sampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
         .writeImage(5, writeHistory->view, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
         .writeImage(6, outputImage->view, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
         .overwrite(m_descriptorSet.sets[context.currentFrameIndex], m_resourceManager->GetContext().getDevice());
@@ -82,4 +75,6 @@ void Render::Pass::SVGFTemporalPass::Execute(const RenderTypes::RenderContext& c
     uint32_t groupX = (m_Extent.width + 15) / 16;
     uint32_t groupY = (m_Extent.height + 15) / 16;
     vkCmdDispatch(context.cmd, groupX, groupY, 1);
+
+   
 }

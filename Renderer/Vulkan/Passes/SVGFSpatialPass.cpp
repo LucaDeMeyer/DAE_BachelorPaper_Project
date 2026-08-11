@@ -22,7 +22,7 @@ void Render::Pass::SVGFSpatialPass::Setup(Graph::RenderGraphBuilder& builder)
     outDesc.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     outDesc.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
 
-    m_output = builder.CreateTexture(outDesc,true);
+    m_output = builder.CreateTexture(outDesc,false);
     builder.AddDependency(m_output, Graph::AccessType::ComputeShaderWrite);
 }
 

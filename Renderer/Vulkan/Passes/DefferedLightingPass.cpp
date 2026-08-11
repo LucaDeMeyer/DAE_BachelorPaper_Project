@@ -53,7 +53,7 @@ void Render::Pass::DefferdLightingPass::Setup(Graph::RenderGraphBuilder& builder
     builder.AddDependency(m_brdflut, Graph::AccessType::ShaderRead);
 
 
-    m_rtShadowMask = builder.FindResource("SVGF_Shadow_Final");
+    m_rtShadowMask = builder.FindResource("RT_ShadowMask");
     if (m_rtShadowMask.IsValid()) {
         builder.AddDependency(m_rtShadowMask, Graph::AccessType::ShaderRead);
     }
