@@ -1,6 +1,7 @@
 ﻿#ifndef RENDERER_H
 #define RENDERER_H
 
+#include <map>
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -93,6 +94,15 @@ public:
     /// @brief Retrieves the Vulkan texture descriptor metadata for the currently inspected UI texture.
     Core::TextureDesc* GetViewedTextureDesc() { return &m_ViewedTextureDesc; }
 
+
+    void Screenshot() { m_takeScreenshot = true; }
+    void StartBenchmark() {
+        if (m_isBenchmarking) return;
+        m_isBenchmarking = true;
+        m_benchmarkFrame = 0;
+        m_benchmarkDataGpu.clear();
+        printf("Benchmark Started! (100 Frames)\n");
+    }
 private:
     /// @brief Bootstraps the Vulkan instance, physical device selection, logical device, and global managers.
     void initVulkan();
@@ -109,6 +119,8 @@ private:
     /// @brief Registers all rendering passes and image resources, and compiles the directed acyclic graph (DAG).
     void BuildRenderGraph(Core::Scene* scene);
 
+
+    void DumpBenchmark(const std::string& filepath);
 
     GLFWwindow* window;
     std::unique_ptr<Core::GraphicsContext> context;
@@ -149,7 +161,12 @@ private:
     uint32_t m_absoluteFrameCount = 0;
 
     int m_rtSPP = 1;
-   
+
+    bool m_takeScreenshot = false;
+
+    bool m_isBenchmarking = false;
+    int m_benchmarkFrame = 0;
+    std::map<std::string, std::vector<float>> m_benchmarkDataGpu;
 };
 
 #endif

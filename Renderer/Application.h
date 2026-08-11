@@ -66,7 +66,7 @@ private:
     // --- App/Input State ---
     bool m_uiModeActive = false;
     bool m_tabKeyWasPressed = false;
-
+    bool m_f2WasPressed = false;
     // UI Panel Visibility Toggles
     bool m_showCameraSettings = false;
     bool m_showLightingControls = false;

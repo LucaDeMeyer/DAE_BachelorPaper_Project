@@ -125,9 +125,9 @@ namespace UI {
             Core::ResourceManager* resourceManager,
             Core::GraphicsContext* context,
             VkDescriptorSet* viewedTextureID,
-            Core::TextureDesc* viewedTextureDesc
+            Core::TextureDesc* viewedTextureDesc, std::function<void()> onBenchmark
         ) : m_show(show), m_renderGraph(renderGraph), m_resourceManager(resourceManager),
-            m_context(context), m_viewedTextureID(viewedTextureID), m_viewedTextureDesc(viewedTextureDesc) {
+            m_context(context), m_viewedTextureID(viewedTextureID), m_viewedTextureDesc(viewedTextureDesc), m_onBenchmark(onBenchmark) {
         }
 
         void Draw() override;
@@ -141,6 +141,7 @@ namespace UI {
         Core::GraphicsContext* m_context;
         VkDescriptorSet* m_viewedTextureID;
         Core::TextureDesc* m_viewedTextureDesc;
+        std::function<void()> m_onBenchmark;
     };
 
 

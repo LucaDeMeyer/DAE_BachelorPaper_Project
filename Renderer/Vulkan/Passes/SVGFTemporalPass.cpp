@@ -58,7 +58,7 @@ void Render::Pass::SVGFTemporalPass::Execute(const RenderTypes::RenderContext& c
     VkSampler sampler = context.resourceManager->GetLinearSampler();
 
     Core::DescriptorWriter writer;
-    writer.writeImage(0, inputimg->view, sampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+    writer.writeImage(0, inputimg->view, sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
         .writeImage(1, depthImage->view, sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
         .writeImage(2, normalImage->view, sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
         .writeImage(3, materialImage->view, sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)

@@ -29,7 +29,7 @@ layout(push_constant) uniform PushConsts {
     uint spp;
 } pc;
 
-// --- Random Number Generator ---
+
 uint pcg_hash(uint seed) {
     uint state = seed * 747796405u + 2891336453u;
     uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
@@ -49,7 +49,6 @@ void main()
 
     float depth = texture(samplerDepth, uv).r;
 
-    // Skip the sky
     if (depth >= 0.9999) {
         imageStore(outRTR, pixelCoord, vec4(0.0));
         return;
@@ -58,7 +57,6 @@ void main()
     vec4 material = texture(samplerMaterial, uv);
     float roughness = material.g;
 
-    // Cutoff: Don't trace reflections for very rough surfaces to save performance
     if (roughness > 0.4) {
         imageStore(outRTR, pixelCoord, vec4(0.0));
         return;
@@ -69,7 +67,6 @@ void main()
     vec3 viewPos = (camera.invView * vec4(0, 0, 0, 1)).xyz;
     vec3 viewDir = normalize(worldPos - viewPos);
 
-    // Calculate Perfect Reflection Ray
     vec3 reflectDir = normalize(reflect(viewDir, normal));
     vec3 origin = worldPos + (normal * 0.001);
 
@@ -77,31 +74,25 @@ void main()
     float tMin = 0.01;
     float tMax = 1000.0; 
 
-    // --- SPP ACCUMULATOR ---
     vec3 accumulatedColor = vec3(0.0);
 
     for (uint i = 0; i < pc.spp; ++i) {
-        // Create a unique seed combining pixel, frame, and sample index
+      
         uint seed = pixelCoord.x + pixelCoord.y * uint(resolution.x) + pc.frameCount * 719393 + i * 1337;
 
-        // Generate a random vector inside a sphere to jitter the reflection
         vec3 jitter = vec3(
             rnd(seed) * 2.0 - 1.0, 
             rnd(seed) * 2.0 - 1.0, 
             rnd(seed) * 2.0 - 1.0
         );
 
-        // Scale the jitter spread by the surface roughness (0.0 = perfect mirror)
         jitter = normalize(jitter) * rnd(seed) * roughness;
         vec3 sampleDir = normalize(reflectDir + jitter);
 
-        // Safety check: Jittering can sometimes push the ray into the surface.
-        // If the ray points below the normal, clamp it back to the perfect reflection.
         if (dot(sampleDir, normal) <= 0.01) {
             sampleDir = reflectDir;
         }
 
-        // Reset hitValue for every new ray in the loop
         hitValue = vec4(0.0, 0.0, 0.0, 1.0);
 
         traceRayEXT(
@@ -118,14 +109,12 @@ void main()
             0              // payloadLocation
         );
 
-        // Add this sample's color to the total
         accumulatedColor += hitValue.rgb;
     }
 
-    // Average the accumulated color by the number of samples
+ 
     vec3 finalReflection = accumulatedColor / float(pc.spp);
 
-    // Fade out reflections as they approach the roughness cutoff threshold
     float roughnessFade = 1.0 - smoothstep(0.2, 0.4, roughness);
     finalReflection *= roughnessFade;
 

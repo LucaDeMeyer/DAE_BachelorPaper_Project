@@ -136,13 +136,17 @@ void Application::InitUI() {
         m_renderer->GetContext()->getAllocator()
     ));
 
+    auto onBenchmark = [this]() {
+        m_renderer->StartBenchmark();
+        };
+
     uiLayer->AddPanel(std::make_unique<UI::RenderGraphTimelinePanel>(
         &m_showRenderGraphTimeline,
         m_renderer->GetRenderGraph(),
         m_renderer->GetResourceManager(),
         m_renderer->GetContext(),
         m_renderer->GetViewedTextureID(),
-        m_renderer->GetViewedTextureDesc()
+        m_renderer->GetViewedTextureDesc(),onBenchmark
     ));
 
     
@@ -164,6 +168,12 @@ void Application::Run() {
             glfwSetInputMode(m_window, GLFW_CURSOR, m_uiModeActive ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
         }
         m_tabKeyWasPressed = tabIsPressed;
+
+        bool f2IsPressed = glfwGetKey(m_window, GLFW_KEY_F2) == GLFW_PRESS;
+        if (f2IsPressed && !m_f2WasPressed) {
+            m_renderer->Screenshot();
+        }
+        m_f2WasPressed = f2IsPressed;
 
         if (glfwGetKey(m_window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
             glfwSetWindowShouldClose(m_window, true);

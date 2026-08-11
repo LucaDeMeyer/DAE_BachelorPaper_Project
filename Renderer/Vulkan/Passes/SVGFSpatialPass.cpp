@@ -37,7 +37,7 @@ void Render::Pass::SVGFSpatialPass::Execute(const RenderTypes::RenderContext& co
     VkSampler sampler = context.resourceManager->GetLinearSampler();
 
     Core::DescriptorWriter writer;
-    writer.writeImage(0, inputImg->view, sampler, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+    writer.writeImage(0, inputImg->view, sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
         .writeImage(1, depthImg->view, sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
         .writeImage(2, normalImg->view, sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
         .writeImage(3, matImg->view, sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)

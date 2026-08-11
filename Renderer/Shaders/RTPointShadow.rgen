@@ -46,7 +46,6 @@ layout(push_constant) uniform PushConsts {
     uint spp;
 } pc;
 
-// --- Random Number Generator ---
 uint pcg_hash(uint seed) {
     uint state = seed * 747796405u + 2891336453u;
     uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
@@ -66,7 +65,6 @@ void main()
 
     float depth = texture(samplerDepth, uv).r;
 
-    // Skybox clear
     if (depth >= 0.9999) {
         for (uint i = 0; i < sceneLights.pointLightCount; i++) {
             imageStore(outPointShadowMask, ivec3(pixelCoord, i), vec4(1.0));
@@ -81,7 +79,6 @@ void main()
                     gl_RayFlagsOpaqueEXT | 
                     gl_RayFlagsSkipClosestHitShaderEXT;
 
-    // Loop through every point light in the scene
     for (uint i = 0; i < sceneLights.pointLightCount; i++) {
         vec3 lightCenter = sceneLights.pointLights[i].position.xyz;
         float lightRadius = sceneLights.pointLights[i].position.w;
@@ -89,7 +86,6 @@ void main()
         vec3 fragToLightCenter = lightCenter - worldPos;
         float distanceToCenter = length(fragToLightCenter);
 
-        // If we are literally inside the light center
         if (distanceToCenter < 0.001) {
             imageStore(outPointShadowMask, ivec3(pixelCoord, i), vec4(1.0));
             continue;
@@ -98,29 +94,25 @@ void main()
         vec3 centerDir = fragToLightCenter / distanceToCenter;
         float NoL = dot(normal, centerDir);
 
-        // Early exit: if the surface is facing away from the light center, it's in shadow
         if (NoL <= 0.0) {
             imageStore(outPointShadowMask, ivec3(pixelCoord, i), vec4(0.0));
             continue;
         }
 
-        // --- SPP ACCUMULATOR ---
         float accumulatedShadow = 0.0;
 
         for (uint s = 0; s < pc.spp; ++s) {
-            // Seed uniquely combines Pixel, Frame, Light Index, and Sample Index
+
             uint seed = pixelCoord.x + pixelCoord.y * uint(resolution.x) + 
                         pc.frameCount * 719393 + i * 1337 + s * 9973;
 
-            // Generate a random point inside a sphere for the area light jitter
+ 
             vec3 jitter = vec3(rnd(seed) * 2.0 - 1.0, 
                                rnd(seed) * 2.0 - 1.0, 
                                rnd(seed) * 2.0 - 1.0);
             
-            // Normalize and scale by radius (and random depth within radius)
             jitter = normalize(jitter) * rnd(seed) * lightRadius;
 
-            // Compute actual ray target for this specific sample
             vec3 sampleLightPos = lightCenter + jitter;
             vec3 fragToSample = sampleLightPos - worldPos;
             float sampleDist = length(fragToSample);
@@ -147,7 +139,6 @@ void main()
             accumulatedShadow += hitValue;
         }
 
-        // Average the results over total samples and store
         float finalShadow = accumulatedShadow / float(pc.spp);
         imageStore(outPointShadowMask, ivec3(pixelCoord, i), vec4(finalShadow));
     }

@@ -256,6 +256,12 @@ namespace UI {
         if (!*m_show) return;
 
         ImGui::Begin("Render Graph Timeline", m_show);
+
+        if (ImGui::Button("Run 100-Frame Benchmark (CSV Dump)", ImVec2(-1, 0))) {
+            if (m_onBenchmark) m_onBenchmark();
+        }
+        ImGui::Separator();
+
         const auto& executionOrder = m_renderGraph->GetExecutionOrder();
 
         float totalCpu = 0.0f, totalGpu = 0.0f;

@@ -1,4 +1,9 @@
-﻿#include "Renderer.h"
+﻿
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image_write.h>
+#include <fstream>
+
+#include "Renderer.h"
 #include "Vulkan/Utils/Utils.h"
 #include <stdexcept>
 #include "imgui.h"
@@ -736,10 +741,47 @@ void Renderer::drawFrame(Core::Scene* scene, Core::Camera* camera, bool uiModeAc
    
     vkCmdEndRendering(fd.commandBuffer);
 
-    Utils::TransitionImageLayout(fd.commandBuffer, swapchain->images[imageIndex],
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-        VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, 0,
-        VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT);
+    Core::BufferHandle screenshotBufferHandle;
+    Core::BufferBuilder::Buffer* screenshotBuffer = nullptr;
+
+
+    if (m_takeScreenshot) {
+        // Create a temporary buffer to hold the image data
+        Core::BufferDesc bufDesc{};
+        bufDesc.name = "Screenshot_Buffer";
+        bufDesc.size = swapchain->extent.width * swapchain->extent.height * 4;
+        bufDesc.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        bufDesc.vmaUsage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
+        bufDesc.vmaflags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+
+        screenshotBufferHandle = resourceManager->CreateBuffer(bufDesc);
+        screenshotBuffer = resourceManager->GetBuffer(screenshotBufferHandle);
+
+        // Transition to Transfer Source
+        Utils::TransitionImageLayout(fd.commandBuffer, swapchain->images[imageIndex],
+            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_2_TRANSFER_READ_BIT,
+            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT);
+
+        VkBufferImageCopy region{};
+        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.imageSubresource.layerCount = 1;
+        region.imageExtent = { swapchain->extent.width, swapchain->extent.height, 1 };
+        vkCmdCopyImageToBuffer(fd.commandBuffer, swapchain->images[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,screenshotBuffer->buffer, 1, &region);
+
+      
+        Utils::TransitionImageLayout(fd.commandBuffer, swapchain->images[imageIndex],
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+            VK_ACCESS_2_TRANSFER_READ_BIT, 0,
+            VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT);
+    }
+    else {
+        // Standard Transition
+        Utils::TransitionImageLayout(fd.commandBuffer, swapchain->images[imageIndex],
+            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+            VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, 0,
+            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT);
+    }
 
     vkEndCommandBuffer(fd.commandBuffer);
 
@@ -759,6 +801,46 @@ void Renderer::drawFrame(Core::Scene* scene, Core::Camera* camera, bool uiModeAc
 
     if (vkQueueSubmit(context->getGraphicsQueue(), 1, &submitInfo, fd.inFlightFence) != VK_SUCCESS) {
         throw std::runtime_error("failed to submit draw command buffer!");
+    }
+
+    if (m_takeScreenshot) {
+        vkQueueWaitIdle(context->getGraphicsQueue()); 
+
+        uint32_t width = swapchain->extent.width;
+        uint32_t height = swapchain->extent.height;
+        std::vector<uint8_t> pixels(width * height * 4);
+
+        auto* allocator = context->getAllocator();
+        void* mappedData = allocator->map<void>(screenshotBuffer->allocation);
+        memcpy(pixels.data(), mappedData, pixels.size());
+        allocator->unmap(screenshotBuffer->allocation);
+
+        if (swapchain->format == VK_FORMAT_B8G8R8A8_UNORM || swapchain->format == VK_FORMAT_B8G8R8A8_SRGB) {
+            for (size_t i = 0; i < pixels.size(); i += 4) {
+                std::swap(pixels[i], pixels[i + 2]);
+            }
+        }
+
+        stbi_write_png("screenshot.png", width, height, 4, pixels.data(), width * 4);
+        printf("Saved screenshot.png\n");
+
+        resourceManager->DestroyBuffer(screenshotBufferHandle);
+        m_takeScreenshot = false;
+    }
+    if (m_isBenchmarking) {
+        m_benchmarkFrame++;
+
+        if (m_benchmarkFrame > 20 && m_benchmarkFrame <= 80) {
+            for (uint32_t passIndex : renderGraph->GetExecutionOrder()) {
+                const auto* pass = renderGraph->GetPass(passIndex);
+                m_benchmarkDataGpu[pass->GetName()].push_back(renderGraph->GetGPUTimeMs(passIndex));
+            }
+        }
+
+        if (m_benchmarkFrame == 100) {
+            DumpBenchmark("benchmark_results.csv");
+            m_isBenchmarking = false;
+        }
     }
 
     VkPresentInfoKHR presentInfo{};
@@ -992,3 +1074,35 @@ void Renderer::Shutdown()
     context->Shutdown();
 }
 
+void Renderer::DumpBenchmark(const std::string& filepath) {
+    std::ofstream file(filepath);
+    if (!file.is_open()) {
+        printf("Failed to open benchmark file!\n");
+        return;
+    }
+
+    file << "Pass Name, Average GPU Time (ms), Min (ms), Max (ms)\n";
+
+    float totalGpuTime = 0.0f;
+
+    for (const auto& [passName, timings] : m_benchmarkDataGpu) {
+        if (timings.empty()) continue;
+
+        float sum = 0.0f, minTime = 9999.0f, maxTime = -1.0f;
+        for (float t : timings) {
+            sum += t;
+            if (t < minTime) minTime = t;
+            if (t > maxTime) maxTime = t;
+        }
+
+        float avg = sum / timings.size();
+        totalGpuTime += avg;
+
+        file << passName << "," << avg << "," << minTime << "," << maxTime << "\n";
+    }
+
+    file << "TOTAL," << totalGpuTime << ",,\n";
+    file.close();
+
+    printf("Benchmark complete! Saved to %s (Total GPU Avg: %.3f ms)\n", filepath.c_str(), totalGpuTime);
+}

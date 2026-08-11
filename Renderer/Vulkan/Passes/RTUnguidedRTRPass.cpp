@@ -46,7 +46,7 @@ void Render::Pass::UnguidedRTRPass::Setup(Graph::RenderGraphBuilder& builder)
     Core::TextureDesc outDesc{};
     outDesc.name = "RT_ReflectionOutput";
     outDesc.extent = { m_Extent.width, m_Extent.height, 1 };
-    outDesc.format = VK_FORMAT_R16G16B16A16_SFLOAT; // Standard HDR output format
+    outDesc.format = VK_FORMAT_R16G16B16A16_SFLOAT; 
     outDesc.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     outDesc.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
     outDesc.arrayLayers = 1;

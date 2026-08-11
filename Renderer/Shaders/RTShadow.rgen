@@ -46,7 +46,7 @@ layout(push_constant) uniform PushConsts {
     uint spp;
 } pc;
 
-// --- Random Number Generator ---
+
 uint pcg_hash(uint seed) {
     uint state = seed * 747796405u + 2891336453u;
     uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
@@ -66,7 +66,6 @@ void main()
 
     float depth = texture(samplerDepth, uv).r;
 
-    // Fast skybox clear (1.0 = fully lit)
     if (depth >= 0.9999) {
         imageStore(outShadowMask, pixelCoord, vec4(1.0));
         return;
@@ -77,7 +76,7 @@ void main()
 
     float NoL = dot(normal, lightDir);
     if (NoL <= 0.0) {
-        // Surface faces away from the sun -> strictly in shadow
+
         imageStore(outShadowMask, pixelCoord, vec4(0.0));
         return;
     }
@@ -93,32 +92,23 @@ void main()
     uint rayFlags = gl_RayFlagsTerminateOnFirstHitEXT | 
                     gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
 
-    // --- Tangent Space for Sun Disk Sampling ---
-    // Create an orthogonal basis around the light direction
     vec3 up = abs(lightDir.z) < 0.999 ? vec3(0, 0, 1) : vec3(1, 0, 0);
     vec3 tangent = normalize(cross(up, lightDir));
     vec3 bitangent = cross(lightDir, tangent);
 
-    // Determines how "soft" the shadows are (proxy for sun angular diameter)
-    // 0.0 = Hard Shadows, 0.05 = Soft Shadows
     float sunAngularSpread = 0.02; 
 
-    // --- SPP ACCUMULATOR ---
     float accumulatedShadow = 0.0;
 
     for (uint i = 0; i < pc.spp; i++) {
         uint seed = pixelCoord.x + pixelCoord.y * uint(resolution.x) + pc.frameCount * 719393 + i * 1337;
 
-        // Generate a random point on a 2D disk
         float r = sqrt(rnd(seed)) * sunAngularSpread;
         float theta = rnd(seed) * 2.0 * PI;
-        
-        // Offset the ray direction using our tangent space
+
         vec3 jitter = tangent * (cos(theta) * r) + bitangent * (sin(theta) * r);
         vec3 sampleDir = normalize(lightDir + jitter);
 
-        // Reset payload to 0.0 (shadowed) for each ray. 
-        // The miss shader MUST set this to 1.0 if it hits nothing!
         hitValue = 0.0;
 
         traceRayEXT(
@@ -138,7 +128,6 @@ void main()
         accumulatedShadow += hitValue;
     }
 
-    // Average the results over total samples and store
     float finalShadow = accumulatedShadow / float(pc.spp);
     imageStore(outShadowMask, pixelCoord, vec4(finalShadow));
 }
