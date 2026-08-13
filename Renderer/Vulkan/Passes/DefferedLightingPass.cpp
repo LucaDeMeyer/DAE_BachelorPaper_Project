@@ -222,6 +222,7 @@ void Render::Pass::DefferdLightingPass::Execute(const RenderTypes::RenderContext
     push.debugMode = context.debugViewMode;
     push.useRTShadows = context.m_enableRTShadows > 0 ? 1 : 0;
     push.usePostDenoising = context.m_usePostDenoising;
+    push.spp = context.m_spp;
     vkCmdPushConstants(
         context.cmd, m_pipeline->layout, VK_SHADER_STAGE_FRAGMENT_BIT,
         0, sizeof(RenderTypes::LightingDebugPushConstant), &push

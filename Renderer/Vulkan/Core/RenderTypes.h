@@ -172,6 +172,7 @@ namespace RenderTypes
         int debugMode;
         int useRTShadows;
         int usePostDenoising;
+        int spp;
     };
 
     struct GPUMaterial {

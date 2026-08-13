@@ -10,6 +10,10 @@
 
 namespace Core { class Scene; }
 
+struct ssrPush
+{
+    int spp;
+};
 namespace Render::Pass
 {
     class SSRPass : public Graph::Pass
@@ -43,7 +47,7 @@ namespace Render::Pass
             ssrConfig.enableDepthWrite = false;
             ssrConfig.depthCompareOp = VK_COMPARE_OP_ALWAYS;
             ssrConfig.cullMode = VK_CULL_MODE_NONE;
-
+            ssrConfig.pushConstants = { {VK_SHADER_STAGE_FRAGMENT_BIT,0,sizeof(ssrPush)} };
             Core::PipelineBuilder pipelineBuilder(m_resourceManager->GetContext());
             m_pipeline = Core::PipelineFactory::CreateGraphics(&pipelineBuilder, ssrConfig);
         }

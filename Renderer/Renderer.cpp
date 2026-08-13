@@ -645,20 +645,20 @@ void Renderer::BuildRenderGraph(Core::Scene* scene)
     std::string taaInputName = "LightingOut";
 
     if (m_usePostDenoising) {
-        auto& postTemporal = renderGraph->AddPass<Render::Pass::SVGFTemporalPass>(
-            "SVGF Post Temporal", resourceManager.get(), swapchain->extent,
-            rgPostHistory0, rgPostHistory1, m_postSvgfHistory[0], m_postSvgfHistory[1],
-            "LightingOut", "SVGF_Post_Temporal_Out", 3
-        );
-        auto& postSpatial1 = renderGraph->AddPass<Render::Pass::SVGFSpatialPass>(
-            "SVGF Post Spatial 1", resourceManager.get(), swapchain->extent,
-            "SVGF_Post_Temporal_Out", "SVGF_Post_Spatial_1", 1, 3
-        );
-        auto& postSpatial2 = renderGraph->AddPass<Render::Pass::SVGFSpatialPass>(
-            "SVGF Post Spatial 2", resourceManager.get(), swapchain->extent,
-            "SVGF_Post_Spatial_1", "SVGF_Post_Final", 2, 3
-        );
-        taaInputName = "SVGF_Post_Final"; 
+       auto& postTemporal = renderGraph->AddPass<Render::Pass::SVGFTemporalPass>(
+           "SVGF Post Temporal", resourceManager.get(), swapchain->extent,
+           rgPostHistory0, rgPostHistory1, m_postSvgfHistory[0], m_postSvgfHistory[1],
+           "LightingOut", "SVGF_Post_Temporal_Out", 3
+       );
+       auto& postSpatial1 = renderGraph->AddPass<Render::Pass::SVGFSpatialPass>(
+           "SVGF Post Spatial 1", resourceManager.get(), swapchain->extent,
+           "SVGF_Post_Temporal_Out", "SVGF_Post_Spatial_1", 1, 3
+       );
+       auto& postSpatial2 = renderGraph->AddPass<Render::Pass::SVGFSpatialPass>(
+           "SVGF Post Spatial 2", resourceManager.get(), swapchain->extent, 
+           "SVGF_Post_Spatial_1", "SVGF_Post_Final", 2, 3
+       );
+       taaInputName = "SVGF_Post_Final"; 
     }
 
     auto& taaPass = renderGraph->AddPass<Render::Pass::TAAPass>(
@@ -704,7 +704,7 @@ void Renderer::recreateSwapchain(Core::Scene* scene, Core::Camera* camera) {
         Core::SwapChainBuilder(*context).setExtent(width, height).build()
     );
 
-    auto recreateHistory = [&](Core::TextureHandle hist[2], const std::string& name, uint32_t layers) {
+    auto recreateHistory = [&](Core::TextureHandle hist[2], const std::string& name, uint32_t layers){
         for (int i = 0; i < 2; i++) {
             if (hist[i].IsValid()) resourceManager->DestroyTexture(hist[i]);
         }
@@ -790,6 +790,7 @@ void Renderer::drawFrame(Core::Scene* scene, Core::Camera* camera, bool uiModeAc
     rendercontext.m_spp = m_rtSPP;
     rendercontext.m_aoSPP = m_aoSPP;
     rendercontext.m_usePostDenoising = m_usePostDenoising;
+
 
     renderGraph->Execute(rendercontext);
 

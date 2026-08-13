@@ -129,7 +129,7 @@ namespace Core
 		float speed{ .1f };
 		float sensitivity{ 0.1f };
 
-		float yaw{ -90.0f };
+		float yaw{ 30.0f };
 		float pitch{ 0.0f };
 
 		glm::mat4 unjitteredProjectionMatrix{ 1.0f };

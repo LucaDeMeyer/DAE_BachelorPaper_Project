@@ -25,6 +25,11 @@ vec3 getViewPos(vec2 uv, float depth) {
     return viewSpace.xyz / viewSpace.w;
 }
 
+layout(push_constant) uniform PushConstants {
+    int sampleCount; 
+} pc;
+
+
 void main() 
 {
     float depth = texture(samplerDepth, inUV).r;
@@ -56,8 +61,9 @@ void main()
         return;
     }
 
-    const int maxSteps = 60;
-    const float stepSize = 0.25;
+    const int maxSteps =pc.sampleCount;
+    const float MAX_DISTANCE = 8.0; 
+    float stepSize = MAX_DISTANCE / float(pc.sampleCount);
     const float thickness = 0.5; // How thick a surface is assumed to be for collisions
 
     vec3 rayPos = viewPos;

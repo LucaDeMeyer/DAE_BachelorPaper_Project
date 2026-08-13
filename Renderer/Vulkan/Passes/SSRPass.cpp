@@ -77,6 +77,13 @@ void Render::Pass::SSRPass::Execute(const RenderTypes::RenderContext& context, R
     VkRect2D scissor{ {0, 0}, m_extent };
     vkCmdSetScissor(context.cmd, 0, 1, &scissor);
 
+    ssrPush pushdata{};
+    pushdata.spp = context.m_spp;
+
+    vkCmdPushConstants(
+        context.cmd, m_pipeline->layout, VK_SHADER_STAGE_FRAGMENT_BIT,
+        0, sizeof(ssrPush), &pushdata
+    );
     vkCmdBindDescriptorSets(context.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline->layout, 0, 1, &m_descriptorSet.sets[context.currentFrameIndex], 0, nullptr);
     vkCmdDraw(context.cmd, 3, 1, 0, 0);
 

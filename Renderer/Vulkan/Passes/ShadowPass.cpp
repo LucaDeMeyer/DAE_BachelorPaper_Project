@@ -99,7 +99,6 @@ void Render::Pass::ShadowPass::Execute(const RenderTypes::RenderContext& context
         RenderTypes::PassPushConstants push{};
         push.vertexAddress = vertexAddress;
         push.instanceID = instanceID;
-
         vkCmdPushConstants(context.cmd, m_pipeline->layout,
             VK_SHADER_STAGE_VERTEX_BIT,
             0, sizeof(RenderTypes::PassPushConstants), &push);

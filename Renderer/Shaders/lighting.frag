@@ -52,6 +52,7 @@ layout(set = 0, binding = 3) readonly buffer LightData {
    int debugMode;
    int useRTShadows;
    int usePostDenoising;
+   int spp;
 }debugPushConst;
 
 layout(set = 1, binding = 0) uniform sampler2D samplerAlbedo;
@@ -82,10 +83,9 @@ layout(set = 1, binding =13) uniform sampler2DArray rtPointShadowMask;
 
 layout(set = 1, binding = 14) uniform sampler2D ssrMask;
  
-float CalculateShadow(vec3 worldPos, vec3 N, vec3 L,vec2 uv)
+float CalculateShadow(vec3 worldPos, vec3 N, vec3 L, vec2 uv)
 {
-
-if (debugPushConst.useRTShadows == 1) {
+    if (debugPushConst.useRTShadows == 1) {
         // Just fetch the pre-calculated ray-traced mask!
         return texture(rtShadowMask, uv).r;
     }
@@ -106,31 +106,37 @@ if (debugPushConst.useRTShadows == 1) {
     vec2 shadowUV = lightSpacePos.xy * 0.5 + 0.5;
     float currentDepth = lightSpacePos.z;
 
-    // Clamp to valid range
+   
     if (currentDepth > 1.0 || any(lessThan(shadowUV, vec2(0.0))) || any(greaterThan(shadowUV, vec2(1.0))))
         return 1.0;
 
     // Slope scaled bias
     float bias = max(0.005 * (1.0 - dot(N, L)), 0.0005);
 
-    // PCF — 3x3 kernel using sampler2DArrayShadow
-    // By using 'sampler2DArrayShadow' instead of 'sampler2DArray', we tell the Vulkan 
-    // driver to use the GPU's fixed-function texture filtering hardware. 
-    // The 'texture()' call automatically performs the depth comparison (currentDepth < shadowDepth) 
-    // in silicon and returns a smooth [0.0 to 1.0] visibility float, rather than returning a raw depth value.
+    int radius = 0;
+   if (debugPushConst.spp >= 32) radius = 3;      // 7x7 grid = 49 samples
+   else if (debugPushConst.spp >= 16) radius = 2; // 5x5 grid = 25 samples
+   else if (debugPushConst.spp >= 8) radius = 1;  // 3x3 grid = 9 samples
+   else radius = 0;                               // 1x1 grid = 1 sample
+
     float shadow = 0.0;
+    float sampleCount = 0.0;
     vec2 texelSize = 1.0 / vec2(textureSize(shadowMap, 0));
-    for (int x = -1; x <= 1; x++) {
-        for (int y = -1; y <= 1; y++) {
+
+    for (int x = -radius; x <= radius; x++) {
+        for (int y = -radius; y <= radius; y++) {
             vec2 offset = vec2(x, y) * texelSize;
-            // sampler2DArrayShadow automatically performs the depth comparison in hardware!
+            
             shadow += texture(shadowMap, vec4(
                 shadowUV + offset,
                 float(cascadeIndex),
                 currentDepth - bias));
+                
+            sampleCount += 1.0;
         }
     }
-    shadow /= 9.0;
+    
+    shadow /= sampleCount;
     return shadow;
 }
 
@@ -341,9 +347,8 @@ void main()
    vec3 color = Lo + ambient;
 
     if (debugPushConst.usePostDenoising == 1) {
-     
-        vec3 demodulatedLighting = color / max(albedo.rgb, vec3(0.005));
-        outColor = vec4(demodulatedLighting, 1.0); 
+       vec3 demodulatedLighting = color / max(albedo.rgb, vec3(0.005));
+       outColor = vec4(demodulatedLighting, 1.0); 
     } else {
         outColor = vec4(color, 1.0);
     }

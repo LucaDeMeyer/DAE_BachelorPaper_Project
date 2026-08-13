@@ -12,6 +12,7 @@ namespace Core
 	class Scene;
 }
 
+
 namespace Render::Pass
 {
     /// @brief Renders the scene from the directional light's perspective to generate Cascaded Shadow Maps (CSM).
@@ -52,7 +53,6 @@ namespace Render::Pass
             shadowConfig.depthBiasEnable = true;
             shadowConfig.depthBiasConstant = 1.25f;
             shadowConfig.depthBiasSlopeFactor = 1.75f;
-
             Core::PipelineBuilder pipelineBuilder(m_resourceManager->GetContext());
             m_pipeline = Core::PipelineFactory::CreateGraphics(&pipelineBuilder, shadowConfig);
 	}

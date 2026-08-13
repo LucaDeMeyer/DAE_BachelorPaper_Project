@@ -82,12 +82,12 @@ void Application::InitScene() {
     int width, height;
     glfwGetFramebufferSize(m_window, &width, &height);
     float aspectRatio = static_cast<float>(width) / static_cast<float>(height);
-    m_Camera->InitCamera(aspectRatio, 45.f, 0.1f, 50.f, glm::vec3(0.0f, 2.0f, 0.f), 10.f);
+    m_Camera->InitCamera(aspectRatio, 45.f, 0.1f, 50.f, glm::vec3(-11.0f, 1.25f, -1.75f), 10.f);
 
   
-    m_LoadedMeshes = Core::MeshLoader::LoadFromFile(*m_renderer->GetContext(), "models/Sponza/Sponza.gltf", *m_renderer->GetResourceManager());
+    m_LoadedMeshes = Core::MeshLoader::LoadFromFile(*m_renderer->GetContext(), "models/MetalRoughSpheres/MetalRoughSpheres.gltf", *m_renderer->GetResourceManager());
     for (auto& mesh : m_LoadedMeshes) {
-        Core::Object model(&mesh, "models/Sponza/Sponza.gltf");
+        Core::Object model(&mesh, "models/MetalRoughSpheres/MetalRoughSpheres.gltf");
         model.SetPosition({ 0.0f, 0.0f, 0.0f });
         m_Scene->AddObject(model);
     }
@@ -95,7 +95,7 @@ void Application::InitScene() {
 
     m_Scene->AddDirectionalLight({ -1.0f, -1.0f, 0.3f }, { 1.0f, 0.55f, 0.7f }, 1000.f);
     m_Scene->AddPointLight({ 0, 1.5, 3 }, { 1.0f, 0.0f, 0.0f }, 5000.f, 2.f);
-    m_Scene->AddPointLight({ 0, 5, 0 }, { 1.0f, 1.0f, 1.0f }, 5000.f, 2.f);
+   // m_Scene->AddPointLight({ 0, 5, 0 }, { 1.0f, 1.0f, 1.0f }, 5000.f, 2.f);
 }
 
 void Application::InitUI() {
